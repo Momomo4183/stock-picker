@@ -62,6 +62,51 @@ def split_factor(fund: pd.DataFrame) -> pd.Series:
     return pd.Series(out, index=fund.index)
 
 
+def add_growth(fund: pd.DataFrame) -> pd.DataFrame:
+    """決算期ごとに「伸びているか」を出す。
+
+    ユーザーが経常利益で見ている観点のうち、過去データで測れる2つ:
+      ・実績が年々伸びているか      → 連続増益年数、3年の伸び
+      ・今期が昨年に比べて伸びたか  → 前期比
+
+    経常利益そのものは yfinance に無いため **税引前利益で代用**する
+    （経常利益 ≒ 税引前利益 − 特別損益）。
+
+    「最新会社予想が前期と比べて上か下か」は測れない。yfinance は過去の
+    会社予想を保持しておらず、現時点のアナリスト予想しか返さないため。
+
+    伸び率は前期がプラスのときだけ出す（赤字からの回復を「+300%」の
+    ように扱うと順位付けが壊れるため）。
+    """
+    fund = fund.sort_values(["code", "決算期"]).copy()
+    g = fund.groupby("code")
+
+    for col, name in (("税引前利益", "経常"), ("営業利益", "営業"),
+                      ("売上", "売上")):
+        prev = g[col].shift(1)
+        fund[f"{name}前期比%"] = ((fund[col] / prev - 1) * 100).where(prev > 0)
+
+    prev3 = g["税引前利益"].shift(3)
+    fund["経常3年伸び%"] = (((fund["税引前利益"] / prev3) ** (1 / 3) - 1)
+                            * 100).where(prev3 > 0)
+
+    # 連続して増益だった年数（今期を含めて何期連続で増えているか）
+    up = (fund["税引前利益"] > g["税引前利益"].shift(1)).astype(int)
+    streak = up.groupby([fund["code"], (up == 0).cumsum()]).cumsum()
+    fund["経常連続増益年"] = streak
+
+    # 潰れにくさ・稼ぐ力の側（「最悪1年持てるか」に効くと思われるもの）
+    fund["ROE%"] = (fund["純利益"] / fund["純資産"] * 100).where(
+        fund["純資産"] > 0)
+    fund["営業利益率%"] = (fund["営業利益"] / fund["売上"] * 100).where(
+        fund["売上"] > 0)
+    fund["負債比率"] = (fund["有利子負債"] / fund["純資産"]).where(
+        fund["純資産"] > 0)
+    fund["CF利益比"] = (fund["営業CF"] / fund["純利益"]).where(
+        fund["純利益"] > 0)
+    return fund
+
+
 def attach_fundamentals(base: pd.DataFrame) -> pd.DataFrame:
     """その時点で発表済みの決算数値を各行にくっつける。"""
     fund = pd.read_csv(DATA / "fundamentals_history.csv", dtype={"code": str},
@@ -71,10 +116,13 @@ def attach_fundamentals(base: pd.DataFrame) -> pd.DataFrame:
     fund["決算期"] = as_ns(fund["決算期"])
     fund = fund.dropna(subset=["使用可能日", "決算期"])
     fund["株式数調整"] = fund["株式数"] * split_factor(fund)
+    fund = add_growth(fund)
     fund = fund.sort_values("使用可能日")
 
     cols = ["EPS", "税引前利益", "営業利益", "売上", "純利益", "純資産",
-            "株式数", "株式数調整", "有利子負債", "営業CF"]
+            "株式数", "株式数調整", "有利子負債", "営業CF",
+            "経常前期比%", "営業前期比%", "売上前期比%", "経常3年伸び%",
+            "経常連続増益年", "ROE%", "営業利益率%", "負債比率", "CF利益比"]
     keep = ["code", "使用可能日", "決算期"] + cols
     fund = fund[[c for c in keep if c in fund.columns]]
 

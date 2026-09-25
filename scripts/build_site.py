@@ -221,9 +221,7 @@ tbody tr:last-child td{border-bottom:none}
 .empty{padding:24px;text-align:center;color:var(--sub)}
 .code{font:inherit;font-size:11.5px;font-weight:600;color:var(--accent);background:var(--hi);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-right:4px;cursor:pointer}
 td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
-#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;align-items:center;gap:10px;z-index:10;box-shadow:0 4px 14px #0003;max-width:calc(100% - 32px)}
-#toastMsg{white-space:nowrap}
-#toast a{color:var(--bg);font-weight:600;border:1px solid var(--bg);border-radius:7px;padding:4px 9px;text-decoration:none;white-space:nowrap}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;text-align:center;z-index:10;box-shadow:0 4px 14px #0003;max-width:calc(100% - 32px)}
 </style></head><body>
 <header><h1>配当株の買い場</h1><div class="meta" id="meta"></div></header>
 <section>
@@ -241,7 +239,7 @@ td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line
 <div class="count" id="count"></div>
 <div id="body"></div>
 </section>
-<div id="toast" role="status"><span id="toastMsg"></span><a href="ispeed://">iSPEEDを開く</a></div>
+<div id="toast" role="status"><span id="toastMsg"></span></div>
 <script>
 const D = __DATA__;
 const NUM = {"配当利回り%":2,"配当性向%":0,"PER":1,"PBR":2,"時価総額億":0,"株価":0};
@@ -290,8 +288,9 @@ function draw() {
   });
   document.querySelectorAll(".code").forEach(b => b.onclick = () => copyCode(b.dataset.code));
 }
-// コードをコピーして、iSPEEDを開くボタンを出す。アプリへの移動は押したときだけ
-// （iSPEEDは銘柄を指定して開く方法が公開されていないので、検索に貼り付けてもらう）
+// コードをコピーする。iSPEEDは銘柄を指定して開く方法が公開されておらず、
+// アプリを開くだけの ispeed:// も本人のスマホでは開かなかった（2026-09-25）ので、
+// アプリは本人が開いて検索に貼り付ける
 let toastTimer = null;
 async function copyCode(code) {
   let ok = false;
@@ -303,11 +302,11 @@ async function copyCode(code) {
     t.remove();
   }
   document.getElementById("toastMsg").textContent =
-    ok ? `${code} をコピーしました` : `コピーできませんでした（コード ${code}）`;
+    ok ? `${code} をコピーしました。iSPEEDの検索に貼り付けてください` : `コピーできませんでした（コード ${code}）`;
   const el = document.getElementById("toast");
   el.style.display = "flex";
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.style.display = "none"; }, 6000);
+  toastTimer = setTimeout(() => { el.style.display = "none"; }, 3500);
 }
 draw();
 </script></body></html>

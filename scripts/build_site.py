@@ -219,11 +219,16 @@ tbody tr:last-child td{border-bottom:none}
 .wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .good{color:var(--good);font-weight:600}.warn{color:var(--warn);font-weight:600}
 .empty{padding:24px;text-align:center;color:var(--sub)}
+.code{font:inherit;font-size:11.5px;font-weight:600;color:var(--accent);background:var(--hi);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-right:4px;cursor:pointer}
+td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;align-items:center;gap:10px;z-index:10;box-shadow:0 4px 14px #0003;max-width:calc(100% - 32px)}
+#toast a{color:var(--bg);font-weight:600;border:1px solid var(--bg);border-radius:7px;padding:4px 9px;text-decoration:none;white-space:nowrap}
 </style></head><body>
 <header><h1>配当株の買い場</h1><div class="meta" id="meta"></div></header>
 <section>
 <div class="desc"><b>条件</b>　<span id="cond"></span><br>
-並び順は「割安度」の高い順（今の利回りが、その銘柄の過去5年の中で高い＝配当に対して株価が安い）。見出しを押すと並べ替えます。株主優待は含みません。</div>
+並び順は「割安度」の高い順（今の利回りが、その銘柄の過去5年の中で高い＝配当に対して株価が安い）。見出しを押すと並べ替えます。株主優待は含みません。<br>
+<b>銘柄名</b>を押すと楽天証券の銘柄ページが開きます。<b>コード</b>を押すとコピーされるので、iSPEEDの検索に貼り付けてください。</div>
 <details><summary>各列の見方</summary><dl>
 <dt>割安度（0〜100）</dt><dd>今の配当利回りが過去5年の中でどれだけ高いか。100に近いほど、配当に対して株価が安い。</dd>
 <dt>荒さ</dt><dd>値動きの大きさ（全銘柄の中での位置）。「穏やか」な銘柄ほど、1年後に大きく値下がりしている確率が低い傾向がありました（過去14年の検証で、前半・後半どちらの期間でも確認）。</dd>
@@ -235,6 +240,7 @@ tbody tr:last-child td{border-bottom:none}
 <div class="count" id="count"></div>
 <div id="body"></div>
 </section>
+<div id="toast" role="status"><span id="toastMsg"></span><a href="ispeed://">iSPEEDを開く</a></div>
 <script>
 const D = __DATA__;
 const NUM = {"配当利回り%":2,"配当性向%":0,"PER":1,"PBR":2,"時価総額億":0,"株価":0};
@@ -243,8 +249,15 @@ document.getElementById("meta").textContent =
   `株価 ${D.asof.株価} 時点 ／ 対象 ${D.universe.toLocaleString()}銘柄 ／ 作成 ${D.generated}`;
 document.getElementById("cond").textContent = D.condition;
 document.getElementById("count").textContent = `${D.count} 銘柄`;
+// 楽天証券の銘柄ページ（ログインなしで株価・チャート・ニュース・企業情報が見られる）
+const QUOTE = code => `https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric=${code}.T`;
 function cell(k, v) {
   if (v === null || v === undefined) return "<td>–</td>";
+  if (k === "銘柄") {
+    const i = v.indexOf(" "), code = v.slice(0, i), name = v.slice(i + 1);
+    return `<td><button class="code" data-code="${code}">${code}</button>` +
+           `<a href="${QUOTE(code)}" target="_blank" rel="noopener">${name}</a></td>`;
+  }
   if (k === "荒さ") {
     const t = v < 33 ? ["穏やか","good"] : v < 67 ? ["普通",""] : ["荒い","warn"];
     return `<td class="${t[1]}">${t[0]}</td>`;
@@ -274,6 +287,26 @@ function draw() {
     sortAsc = sortCol === c ? !sortAsc : (c === "荒さ" || c === "減配" || c === "配当性向%" || c === "PER" || c === "PBR");
     sortCol = c; draw();
   });
+  document.querySelectorAll(".code").forEach(b => b.onclick = () => copyCode(b.dataset.code));
+}
+// コードをコピーして、iSPEEDを開くボタンを出す。アプリへの移動は押したときだけ
+// （iSPEEDは銘柄を指定して開く方法が公開されていないので、検索に貼り付けてもらう）
+let toastTimer = null;
+async function copyCode(code) {
+  let ok = false;
+  try { await navigator.clipboard.writeText(code); ok = true; } catch (e) {
+    const t = document.createElement("textarea");
+    t.value = code; t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select();
+    try { ok = document.execCommand("copy"); } catch (e2) {}
+    t.remove();
+  }
+  document.getElementById("toastMsg").textContent =
+    ok ? `${code} をコピーしました` : `コピーできませんでした（コード ${code}）`;
+  const el = document.getElementById("toast");
+  el.style.display = "flex";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = "none"; }, 6000);
 }
 draw();
 </script></body></html>

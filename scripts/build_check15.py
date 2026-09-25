@@ -132,7 +132,7 @@ def judge(r: pd.Series, st: pd.DataFrame, dv: dict) -> dict:
 
 SCORED = ["売上", "利益", "営業利益率", "営業CF", "自己資本比率", "PER", "PBR",
           "配当", "配当性向", "急上昇"]
-COLUMNS = ["銘柄", "合格", "配当利回り", "売上", "利益", "営業利益率", "ROE", "ROA",
+COLUMNS = ["銘柄", "合格", "株価", "配当利回り", "売上", "利益", "営業利益率", "ROE", "ROA",
            "営業CF", "現金", "自己資本比率", "PER", "PBR", "配当", "配当性向", "DOE",
            "急上昇", "業種"]
 
@@ -156,6 +156,7 @@ def build(out_dir: Path) -> dict:
         scored = [j[k][1] for k in SCORED if k in j and j[k][1] != "n"]
         rec = {"銘柄": f"{r['code']} {r['name']}",
                "合格": [sum(s in ("p", "g") for s in scored), len(scored)],
+               "株価": round(float(r["株価"]), 1),
                "配当利回り": round(float(r["配当利回り%"]), 2),
                "業種": r.get("sector") if isinstance(r.get("sector"), str) else None}
         for k in COLUMNS:
@@ -219,6 +220,7 @@ td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line
 緑＝基準を満たす（太字は特に良い）、橙＝基準に届かない・注意。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー。</div>
 <details><summary>各列の見方と判定の基準</summary><dl>
 <dt>合格</dt><dd>記事に基準がある10指標のうち、満たした数／判定できた数。</dd>
+<dt>株価</dt><dd>ページを作ったときに取得した株価（上の「株価 ○月○日 時点」の終値）。</dd>
 <dt>売上</dt><dd>最も古い期から直近までの伸び。右肩上がり（直近が最も古い期より大きく、減収が1回まで）なら合格。4〜5期分。</dd>
 <dt>利益</dt><dd>記事ではEPS。株式分割で1株あたりの値が飛ぶのを避けるため、純利益の伸びで判定。</dd>
 <dt>営業利益率</dt><dd>10%以上は優秀、5%以上で合格、5%未満は注意（記事の基準）。</dd>
@@ -256,6 +258,7 @@ function cell(k, v) {
   }
   if (k === "合格") return `<td class="score">${v[0]}/${v[1]}</td>`;
   if (k === "配当利回り") return `<td>${v.toFixed(2)}</td>`;
+  if (k === "株価") return `<td>${v.toLocaleString("ja-JP",{maximumFractionDigits:1})}</td>`;
   if (k === "業種") return `<td>${v}</td>`;
   let [x, s] = v, t;
   if (typeof x !== "number") t = x;

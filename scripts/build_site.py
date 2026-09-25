@@ -214,7 +214,7 @@ th,td{padding:8px 7px;text-align:right;font-size:12.5px;border-bottom:1px solid 
 th{background:var(--hi);color:var(--sub);font-size:11.5px;cursor:pointer;position:sticky;top:0}
 th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1}
 th:first-child{background:var(--hi);z-index:2}
-td:first-child{white-space:normal;min-width:8.5em;max-width:10em}
+td:first-child{white-space:normal;min-width:10em;max-width:11.5em}
 tbody tr:last-child td{border-bottom:none}
 .wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .good{color:var(--good);font-weight:600}.warn{color:var(--warn);font-weight:600}
@@ -222,6 +222,7 @@ tbody tr:last-child td{border-bottom:none}
 .code{font:inherit;font-size:11.5px;font-weight:600;color:var(--accent);background:var(--hi);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-right:4px;cursor:pointer}
 td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;align-items:center;gap:10px;z-index:10;box-shadow:0 4px 14px #0003;max-width:calc(100% - 32px)}
+#toastMsg{white-space:nowrap}
 #toast a{color:var(--bg);font-weight:600;border:1px solid var(--bg);border-radius:7px;padding:4px 9px;text-decoration:none;white-space:nowrap}
 </style></head><body>
 <header><h1>配当株の買い場</h1><div class="meta" id="meta"></div></header>

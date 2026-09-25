@@ -111,14 +111,21 @@ def dividend_history(codes: list) -> dict:
     if not codes:
         return out
     tks = [f"{c}.T" for c in codes]
-    d = yf.download(tks, period="6y", interval="1d", group_by="ticker",
-                    actions=True, auto_adjust=False, progress=False,
-                    threads=True)
+    frames = {}
+    for i in range(0, len(tks), 150):          # 一度に多く頼むと失敗しやすい
+        chunk = tks[i:i + 150]
+        d = yf.download(chunk, period="7y", interval="1d", group_by="ticker",
+                        actions=True, auto_adjust=False, progress=False,
+                        threads=True)
+        for tk in chunk:
+            try:
+                frames[tk] = d[tk] if len(chunk) > 1 else d
+            except KeyError:
+                pass
     today = pd.Timestamp.today().normalize()
     for c, tk in zip(codes, tks):
-        try:
-            sub = d[tk] if len(tks) > 1 else d
-        except KeyError:
+        sub = frames.get(tk)
+        if sub is None:
             continue
         sub = sub.dropna(subset=["Close"])
         if sub.empty or "Dividends" not in sub:
@@ -135,11 +142,20 @@ def dividend_history(codes: list) -> dict:
                    & (yld.index >= close.index[0] + pd.Timedelta(days=365))]
         if len(full) >= 104 and full.iloc[-1] > 0:        # 2年分以上あるとき
             rec["割安度"] = float((full.iloc[:-1] < full.iloc[-1]).mean() * 100)
+        # 利回りの前年比: 今の利回り ÷ 1年前の利回り。株価の急落で利回りが
+        # 急に高くなった銘柄を見分ける（15指標チェックで使う）
+        ago = yld[yld.index <= today - pd.DateOffset(years=1)]
+        if len(ago) and ago.iloc[-1] > 0 and len(yld) and yld.iloc[-1] > 0:
+            rec["利回り前年比"] = float(yld.iloc[-1] / ago.iloc[-1])
 
         # 減配・連続増配: 暦年ごとの配当合計（今年は途中なので使わない）
         paid = dv[dv > 0]
         yearly = paid.groupby(paid.index.year).sum()
-        yearly = yearly[yearly.index < today.year].tail(6)
+        # 取得を始めた年は途中からしか入っていないので使わない（使うと、その年の
+        # 配当が少なく見え、次の年が「増配」、伸びが数倍に見えてしまう。
+        # 2026-09-25 トヨタの5年の伸びが+352%と出て発覚）。今年も途中なので使わない
+        yearly = yearly[(yearly.index > close.index[0].year)
+                        & (yearly.index < today.year)].tail(6)
         if len(yearly) >= 3:
             v = yearly.values
             rec["減配"] = int(sum(v[i] < v[i - 1] * 0.97
@@ -151,6 +167,8 @@ def dividend_history(codes: list) -> dict:
                 else:
                     break
             rec["連続増配"] = streak
+            if v[0] > 0:                 # 最も古い年と直近の年の比（中長期で増えたか）
+                rec["配当の伸び"] = float(v[-1] / v[0])
 
         # 権利月: 直近13か月の権利落ち日の月
         recent = paid[paid.index >= today - pd.DateOffset(months=13)]
@@ -202,6 +220,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,
 header{padding:16px 14px 6px}
 h1{margin:0;font-size:19px}
 .meta{color:var(--sub);font-size:12px;margin-top:4px}
+.nav{font-size:12.5px;margin-top:6px}.nav a{color:var(--accent)}
 section{padding:6px 14px 40px}
 .desc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--sub);margin-bottom:10px}
 .desc b{color:var(--ink)}
@@ -223,7 +242,8 @@ tbody tr:last-child td{border-bottom:none}
 td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 #toast{position:fixed;left:0;right:0;bottom:18px;margin:0 auto;width:max-content;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;text-align:center;z-index:10;box-shadow:0 4px 14px #0003}
 </style></head><body>
-<header><h1>配当株の買い場</h1><div class="meta" id="meta"></div></header>
+<header><h1>配当株の買い場</h1><div class="meta" id="meta"></div>
+<div class="nav"><a href="check15.html">高配当株 15指標チェック →</a></div></header>
 <section>
 <div class="desc"><b>条件</b>　<span id="cond"></span><br>
 並び順は「割安度」の高い順（今の利回りが、その銘柄の過去5年の中で高い＝配当に対して株価が安い）。見出しを押すと並べ替えます。株主優待は含みません。<br>

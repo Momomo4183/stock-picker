@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
-"""1日1回の更新をまとめて行う。
+"""ページの更新をまとめて行う（必要なときに手動で実行する）。
 
-  1. 株価を取り直す（全銘柄・約1分）
-  2. 財務（1株あたりの値）が古ければ取り直す（週1回・遅い）
-  3. 信用残が古ければ JPX の週末残高PDFを取り直す（週1回）
-  4. ページを作り直す（docs/index.html）
-  5. GitHub に反映する（変化があったときだけ）
+  1. 財務（1株あたりの値）が古ければ取り直す（週1回・遅い）
+  2. 株価を取り直す（全銘柄・約1分）
+  3. ページを作り直す（docs/index.html）。候補の配当履歴もここで取る
+  4. GitHub に反映する（変化があったときだけ）
 
-株価だけ毎日取ればよいのは、PER・PBR・時価総額・配当利回りを
+株価だけ取ればよいのは、PER・PBR・時価総額・配当利回りを
 「その日の株価 × 1株あたりの値」で出しているため。
 
+2026-09-25 に②（高配当・優待）向けのページへ作り替えた。信用残（JPXの
+週末残高PDF）はスイング用の③にしか使っていなかったので取得をやめた。
+
 使い方:
-    python scripts/update.py            通常（毎日これを実行する）
+    python scripts/update.py            通常（これを実行する）
     python scripts/update.py --full     財務も必ず取り直す
     python scripts/update.py --no-push  GitHub に反映しない（手元で確認するとき）
 """
@@ -26,7 +28,6 @@ BASE = Path(__file__).resolve().parent
 ROOT = BASE.parent
 DATA = ROOT / "data"
 FUND_MAX_AGE_DAYS = 7      # 1株あたりの値は決算ごとにしか変わらない
-MARGIN_MAX_AGE_DAYS = 7    # JPX の週末残高は週1回の公表
 
 
 def run(cmd: list, timeout: int = 3600) -> int:
@@ -59,7 +60,7 @@ def main() -> int:
     no_push = "--no-push" in sys.argv
     started = dt.datetime.now()
     print("=" * 56)
-    print(f"  銘柄ピックアップ 更新  {started:%Y-%m-%d %H:%M:%S}")
+    print(f"  配当株の買い場 更新  {started:%Y-%m-%d %H:%M:%S}")
     print("=" * 56)
     DATA.mkdir(exist_ok=True)
     py = [sys.executable, "-u"]
@@ -67,26 +68,19 @@ def main() -> int:
     fund_age = age_days("fundamentals_*.csv")
     if full or fund_age is None or fund_age >= FUND_MAX_AGE_DAYS:
         why = "指定" if full else ("無い" if fund_age is None else f"{fund_age}日前")
-        print(f"\n[1/4] 財務（1株あたりの値）を取り直します（{why}）")
+        print(f"\n[1/3] 財務（1株あたりの値）を取り直します（{why}）")
         if run(py + [str(BASE / "fetch_data.py"), "--fundamentals-only"]) == 0:
             # 取得制限で失敗した銘柄を1社ずつ取り直す
             run(py + [str(BASE / "retry_fundamentals.py"), "--pause", "1.0"])
     else:
-        print(f"\n[1/4] 財務は{fund_age}日前のものを使います（取り直しません）")
+        print(f"\n[1/3] 財務は{fund_age}日前のものを使います（取り直しません）")
 
-    print("\n[2/4] 株価を取り直します")
+    print("\n[2/3] 株価を取り直します")
     if run(py + [str(BASE / "fetch_data.py"), "--prices-only"]) != 0:
         print("  [NG] 株価が取れませんでした。ページは作り直しません。")
         return 1
 
-    mg_age = age_days("margin_*.csv")
-    if mg_age is None or mg_age >= MARGIN_MAX_AGE_DAYS:
-        print(f"\n[3/4] 信用残を取り直します（{'無い' if mg_age is None else f'{mg_age}日前'}）")
-        run(py + [str(BASE / "fetch_margin.py")])
-    else:
-        print(f"\n[3/4] 信用残は{mg_age}日前のものを使います")
-
-    print("\n[4/4] ページを作り直します")
+    print("\n[3/3] ページを作り直します（候補の配当履歴もここで取ります）")
     if run(py + [str(BASE / "build_site.py")]) != 0:
         print("  [NG] ページを作れませんでした。")
         return 1

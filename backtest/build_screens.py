@@ -141,19 +141,22 @@ def attach_dividends(df: pd.DataFrame) -> pd.DataFrame:
     div["累計配当"] = div.groupby("code")["配当"].cumsum()
     div = div.sort_values("権利落ち日")
 
-    df = df.assign(日付=as_ns(df["日付"])).sort_values("日付")
+    df = df.assign(日付=as_ns(df["日付"])).sort_values("日付", kind="stable")
     # 今日までの累計 − 1年前までの累計 ＝ 直近12か月の配当
+    # merge_asof は左の並び順のまま結果を返す。「1年前」は日付から365日引いただけで
+    # 並び順が同じなので、並べ替えずにそのまま渡す。
+    # 🔴 2026-09-26 まではここで「1年前」で並べ替えてから sort_index していたが、
+    # merge_asof は元の行番号を持ち越さないので戻らず、同じ日の中で別の銘柄の
+    # 「1年前の累計」を引いていた（対象の利回りの中央値が9.6%になって発覚）。
     now = pd.merge_asof(df[["日付", "code"]], div[["権利落ち日", "code",
                                                    "累計配当"]],
                         left_on="日付", right_on="権利落ち日", by="code",
                         direction="backward")["累計配当"]
     ago = df[["日付", "code"]].copy()
     ago["1年前"] = ago["日付"] - pd.Timedelta(days=365)
-    ago = ago.sort_values("1年前")
     past = pd.merge_asof(ago, div[["権利落ち日", "code", "累計配当"]],
                          left_on="1年前", right_on="権利落ち日", by="code",
-                         direction="backward")
-    past = past.sort_index()["累計配当"]
+                         direction="backward")["累計配当"]
 
     df = df.reset_index(drop=True)
     df["配当12月"] = (now.reset_index(drop=True).fillna(0)

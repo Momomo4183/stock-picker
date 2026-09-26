@@ -36,8 +36,8 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "data" / "backtest"
 CACHE_DIR = Path(r"C:\Users\ookin\Documents\Claude\自動トレード\_price_cache")
 
-# 先を見る日数（営業日）。2週間・1か月・2か月・半年・1年
-HORIZONS = {"2週": 10, "1月": 21, "2月": 42, "半年": 126, "1年": 252}
+# 先を見る日数（営業日）。2週間・1か月・2か月・半年・1年・3年
+HORIZONS = {"2週": 10, "1月": 21, "2月": 42, "半年": 126, "1年": 252, "3年": 756}
 # 指標の計算に必要な最低限の長さ（3年分の騰落を使うため）
 MIN_ROWS = 780
 

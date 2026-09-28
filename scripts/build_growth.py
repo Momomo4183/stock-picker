@@ -82,7 +82,7 @@ def build(out_dir: Path) -> dict:
     df, asof = load()
     df = df.merge(market_extras(), on="code", how="left")
     base = df[(df["時価総額億"] >= MIN_CAP) & (df["売買代金"] >= MIN_DAI)].copy()
-    print(f"対象 {len(base)}銘柄（時価総額{MIN_CAP}億円以上・売買代金{MIN_DAI / 1e6:.0f}百万円以上）",
+    print(f"対象 {len(base)}銘柄（時価総額{MIN_CAP}億円以上・売買代金{MIN_DAI / 1e4:,.0f}万円以上）",
           flush=True)
     stm = fetch_statements.update(base["code"].tolist())
     stm = stm[stm["error"].fillna("") == ""]
@@ -149,7 +149,7 @@ def build(out_dir: Path) -> dict:
     payload = {"generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "asof": asof,
                "universe": len(base), "judged": judged, "count": len(rows),
                "cheap": sum(1 for x in rows if isinstance(x["PEG"], float) and x["PEG"] <= 1),
-               "condition": (f"時価総額{MIN_CAP}億円以上・売買代金{MIN_DAI / 1e6:,.0f}百万円以上"
+               "condition": (f"時価総額{MIN_CAP}億円以上・売買代金{MIN_DAI / 1e4:,.0f}万円以上"
                              f"のうち、売上・営業利益とも年{MIN_GROWTH:.0%}以上の成長で直近期も増収"),
                "rows": rows}
     out_dir.mkdir(parents=True, exist_ok=True)

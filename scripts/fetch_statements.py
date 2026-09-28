@@ -30,7 +30,7 @@ import yfinance as yf  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "statements.csv"
 MAX_AGE_DAYS = 30
-WORKERS = 6
+WORKERS = 3                  # 多いと取得制限で空の表が返りやすい
 
 # (出力の列名, 候補の項目名（上から順に探す）, 表)
 FIELDS = [
@@ -53,7 +53,10 @@ def fetch_one(code: str) -> list:
             tables = {"income": t.income_stmt, "balance": t.balance_sheet,
                       "cash": t.cashflow}
             if tables["income"] is None or tables["income"].empty:
-                return [{"code": code, "取得日": today, "error": "財務諸表なし"}]
+                # 取得制限にかかると、エラーではなく空の表が返ってくることがある
+                # （2026-09-26 に全銘柄を取ったとき、1,952銘柄が空で返った）。
+                # 本当にデータが無いのかは分からないので、いったん取り直しの対象にする
+                return [{"code": code, "取得日": today, "error": "空"}]
             periods = sorted({c for df in tables.values()
                               if df is not None and not df.empty for c in df.columns})
             rows = []
@@ -86,7 +89,11 @@ def update(codes: list) -> pd.DataFrame:
     """対象の銘柄について、無い・古い・前回失敗した分だけ取り直す。"""
     old = load()
     fresh_cut = (dt.date.today() - dt.timedelta(days=MAX_AGE_DAYS)).isoformat()
-    ok = old[(old["error"].fillna("") == "") & (old["取得日"] >= fresh_cut)]
+    ok = old[(old["error"].fillna("").isin(["", "財務諸表なし"])) & (old["取得日"] >= fresh_cut)]
+    # 2026-09-26 に取得制限で空になった分は「財務諸表なし」と記録されているので、
+    # 取り直すときは --retry-empty を付ける
+    if "--retry-empty" in sys.argv:
+        ok = ok[ok["error"].fillna("") == ""]
     todo = [c for c in codes if c not in set(ok["code"])]
     if not todo:
         print(f"  決算書: {len(codes)}銘柄とも{MAX_AGE_DAYS}日以内に取得済み", flush=True)
@@ -104,11 +111,13 @@ def update(codes: list) -> pd.DataFrame:
         failed = {r["code"] for r in rows if r.get("error") not in ("", "財務諸表なし")}
         if not failed or pass_no == 2:
             break
-        print(f"    取得制限などで{len(failed)}銘柄が失敗。30秒おいて取り直します", flush=True)
-        time.sleep(30)
+        print(f"    取得制限などで{len(failed)}銘柄が失敗・空。60秒おいて取り直します", flush=True)
+        time.sleep(60)
         rows = [r for r in rows if r["code"] not in failed]
         todo = sorted(failed)
     new = pd.DataFrame(rows)
+    # 2回取っても空だった銘柄は、本当に財務諸表が無いものとして30日間は取りにいかない
+    new.loc[new["error"] == "空", "error"] = "財務諸表なし"
     keep = old[~old["code"].isin(new["code"])]
     out = pd.concat([keep, new], ignore_index=True)
     OUT.parent.mkdir(exist_ok=True)

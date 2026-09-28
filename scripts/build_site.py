@@ -220,7 +220,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,
 header{padding:16px 14px 6px}
 h1{margin:0;font-size:19px}
 .meta{color:var(--sub);font-size:12px;margin-top:4px}
-.nav{font-size:12.5px;margin-top:6px}.nav a{color:var(--accent)}
+.nav{font-size:12.5px;margin-top:6px}.nav a{color:var(--accent);margin-right:14px}
 section{padding:6px 14px 40px}
 .desc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--sub);margin-bottom:10px}
 .desc b{color:var(--ink)}
@@ -243,7 +243,7 @@ td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line
 #toast{position:fixed;left:0;right:0;bottom:18px;margin:0 auto;width:max-content;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;text-align:center;z-index:10;box-shadow:0 4px 14px #0003}
 </style></head><body>
 <header><h1>配当株の買い場</h1><div class="meta" id="meta"></div>
-<div class="nav"><a href="check15.html">高配当株 15指標チェック →</a></div></header>
+<div class="nav"><a href="check15.html">高配当株 15指標チェック</a><a href="growth.html">グロース株の候補</a></div></header>
 <section>
 <div class="desc"><b>条件</b>　<span id="cond"></span><br>
 並び順は「割安度」の高い順（今の利回りが、その銘柄の過去5年の中で高い＝配当に対して株価が安い）。見出しを押すと並べ替えます。株主優待は含みません。<br>

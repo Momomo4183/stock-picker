@@ -77,7 +77,9 @@ def simulate(price, feats, irx, buy, sell, weekly=True):
     bsig = BUYS[buy](f).fillna(False).values
     kind, rule = SELLS[sell]
     ssig = rule(f).fillna(False).values if kind == "cond" else None
-    check = (pd.Series(idx, index=idx).dt.dayofweek == 4).values if weekly else np.ones(len(idx), bool)
+    # 週1回 = 週の最終営業日（金曜が休みの週は木曜）
+    wk = pd.Series(idx, index=idx).dt.to_period("W-FRI")
+    check = (wk != wk.shift(-1)).values if weekly else np.ones(len(idx), bool)
     p = price.values
     cash_r = irx.reindex(idx).fillna(0).values / 252
     eq_pre = eq_post = 1.0

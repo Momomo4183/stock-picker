@@ -26,8 +26,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 NAV = [("./", "トップ"), ("check15.html", "高配当株 15指標チェック"), ("growth.html", "グロース株の候補"),
        ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"), ("common.html", "共通する銘柄")]
-# PER検索（2026-10-18 ご本人の依頼でトップに検索欄を置いた）。銘柄ごとのPERは build_per_data.py が
-# docs/per/コード.csv に、銘柄一覧は build_per_page.py が docs/per/index.json に作る
+# 銘柄検索（2026-10-18 ご本人の依頼でトップに検索欄を置いた）。銘柄ごとのPERは build_per_data.py が
+# docs/per/コード.csv に、銘柄一覧は build_per_page.py が docs/per/index.json に、4つの条件の全要素は
+# build_detail.py が docs/detail/コード先頭2文字.json に作る（同日、全要素の表示を追加）
 SEARCH_CSS = """form{display:flex;gap:8px;margin:4px 0 12px}
 input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
 button.go{font:inherit;font-weight:700;padding:9px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}
@@ -44,8 +45,19 @@ button.go{font:inherit;font-weight:700;padding:9px 16px;border:0;border-radius:8
 .st{font-weight:700;font-size:15.5px;color:var(--accent)}.sd{font-size:12.5px;color:var(--sub);margin:2px 0 8px}
 .search .card{background:var(--bg)}
 .perdesc{font-size:12px;color:var(--sub);margin-top:6px}.perdesc summary{cursor:pointer;color:var(--ink)}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.chip{border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:13px;background:var(--card)}
+.chip.on{border-color:var(--good);box-shadow:inset 3px 0 0 var(--good)}.chip.on > div:nth-child(2){color:var(--good);font-weight:700}
+.dsec summary{cursor:pointer;font-size:14px;color:var(--accent);font-weight:700}.dsec summary b{color:var(--ink)}
+.sub{font-size:12.5px;font-weight:700;margin:10px 0 4px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.dt th{background:var(--hi);color:var(--sub);font-size:11.5px;text-align:left;padding:5px 7px}
+table.dt td{border-top:1px solid var(--line);padding:5px 7px;vertical-align:middle}
+table.dt td:nth-child(2){white-space:nowrap}
+.ok{color:var(--good);font-weight:700}.ng{color:var(--warn);font-weight:700}
 """
-SEARCH_HTML = """<div class="search"><div class="st">PER検索</div><div class="sd">銘柄コードか銘柄名を入れると、過去10年のPERの推移と幅、今のPERの位置（買い・売りの目安）を表示します。</div>
+SEARCH_HTML = """<div class="search"><div class="st">銘柄検索（PER・4つの条件）</div><div class="sd">銘柄コードか銘柄名を入れると、過去10年のPERの推移と幅、今のPERの位置（買い・売りの目安）と、高配当株 15指標・グロース株・連続増配株・期待値投資の4つの条件のすべての要素と点数を表示します。</div>
 <form id="f"><input id="q" list="codes" placeholder="銘柄コード（例 7203）か銘柄名" autocomplete="off" inputmode="search"><button class="go">検索</button></form>
 <datalist id="codes"></datalist>
 <div class="recent" id="recent"></div>
@@ -117,8 +129,74 @@ async function show(code) {
   if (b) h += `<div class="card"><div class="legend">PERの推移（月末、${rows[0][0]}〜${rows[rows.length - 1][0]}）。帯＝幅、点線＝中央値、点＝今。位置は 0%＝幅の下、100%＝上（0未満・100超は幅の外）</div>${perChart(rows.map(r => [r[0], r[3]]), b, 680, 230)}</div>`;
   else h += `<div class="card s">PERを出せる月が少ないため、幅は出していません（赤字の期が多い・データが短いなど）。</div>`;
   out.innerHTML = h;
+  // 4つの条件の全要素（build_detail.py が docs/detail/コード先頭2文字.json に作る）
+  try {
+    const dj = await (await fetch(`detail/${code.slice(0, 2)}.json`, {cache: "no-cache"})).json();
+    if (dj.stocks[code]) out.insertAdjacentHTML("beforeend", detailHTML(dj.stocks[code], b, sig, dj.asof));
+  } catch (e) { out.insertAdjacentHTML("beforeend", `<div class="card s">4つの条件の要素を読めませんでした。</div>`); }
   let rec = (store("per_recent") || []).filter(c => c !== code); rec.unshift(code); store("per_recent", rec.slice(0, 8)); drawRecent();
   history.replaceState(null, "", "#" + code);
+}
+const OK = v => v === true ? `<span class="ok">○</span>` : v === false ? `<span class="ng">×</span>` : `<span class="s">–</span>`;
+const sp = v => { const xs = (v || []).filter(x => x !== null); if (xs.length < 2) return "";
+  const lo = Math.min(...xs), hi = Math.max(...xs), w = 60, h = 16;
+  const pts = v.map((x, i) => x === null ? null : [i * w / (v.length - 1), h - 1 - (hi > lo ? (x - lo) / (hi - lo) * (h - 2) : (h - 2) / 2)]).filter(Boolean);
+  return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline fill="none" stroke="currentColor" stroke-width="1.3" points="${pts.map(p => p.join(",")).join(" ")}"/></svg> `; };
+const tbl = (head, rows) => `<div class="tw"><table class="dt"><thead><tr>${head.map(x => `<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(x => `<td>${x ?? "–"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+const C15 = [["売上","4〜5期の伸び。右肩上がり（減収1回まで）で合格","%"],["利益","純利益が最も古い期より増えて黒字なら合格","%"],["営業利益率","5%以上で合格・10%以上は優秀","%"],
+  ["ROE","基準なし（値だけ）","%"],["ROA","基準なし（値だけ）","%"],["営業CF","全期プラスで合格",""],["現金","配当の何年分か（値だけ）","年"],["自己資本比率","40%以上で合格（金融は対象外）","%"],
+  ["PER","15倍以下で合格","倍"],["PBR","1倍以下で合格","倍"],["配当","5年の年間配当の伸び。増えていれば合格・減配なしは優秀","%"],["配当性向","70%以下で合格・30〜60%は健全","%"],
+  ["DOE","基準なし（値だけ）","%"],["急上昇","今の利回り÷1年前。1.5倍未満で合格","倍"]];
+const ST = s => s === "g" ? `<span class="ok">◎</span>` : s === "p" ? `<span class="ok">○</span>` : s === "w" ? `<span class="ng">×</span>` : s === "n" ? `<span class="s">対象外</span>` : `<span class="s">値だけ</span>`;
+function detailHTML(d, b, sig, asof) {
+  const hd = d.高配当, g = d.グロース, r = d.連続増配, k = d.期待値;
+  const onRz = r.第1段階通過 && r.第2段階通過;
+  const chip = (name, on, txt) => `<div class="chip ${on ? "on" : ""}"><div class="k">${name}</div><div>${on ? "載っている" : "載っていない"}</div><div class="s">${txt}</div></div>`;
+  let h = `<div class="card"><div class="legend">4つの条件での結果（ページに載るかどうか）。株価・財務は ${asof} 時点</div><div class="chips">
+    ${chip("高配当株 15指標", hd.対象, `合格 ${hd.合格[0]}/${hd.合格[1]}${hd.対象 ? "" : "（対象外：利回り3%・時価総額300億）"}`)}
+    ${chip("グロース株", g.対象 && g.グロース, g.グロース === undefined ? g.判定 || "" : `PEG ${Array.isArray(g.PEG) ? f(g.PEG[0], 2) + "（要確認）" : f(g.PEG, 2)}`)}
+    ${chip("連続増配株", onRz, `加点 ${r.合計}/8・第1段階${r.第1段階通過 ? "○" : "×"}・第2段階${r.第2段階通過 ? "○" : "×"}`)}
+    ${chip("期待値投資", k.通過, sig ? `PERの目安 ${sig}` : "")}
+  </div></div>`;
+  // 高配当株 15指標
+  h += `<details class="card dsec" open><summary>高配当株 15指標チェック　<b>合格 ${hd.合格[0]}/${hd.合格[1]}</b> <span class="s">${hd.対象 ? "" : "（このページの対象外：配当利回り3%以上・時価総額300億円以上）"}</span></summary>` +
+    tbl(["指標", "値", "基準", "判定"], C15.map(([key, rule, unit]) => { const v = hd.指標[key];
+      if (!v) return [key, "–", rule, `<span class="s">データなし</span>`];
+      let t = typeof v[0] === "number" ? f(v[0], unit === "倍" && key === "PBR" ? 2 : 1) + unit : v[0];
+      if (key === "配当" && v[2]) t += `（減配${v[2]}）`;
+      return [key, t, rule, ST(v[1])]; })) + `</details>`;
+  // グロース株
+  const gr = g.グロース === undefined ? `<div class="s">${g.判定 || "データなし"}</div>` :
+    tbl(["条件・指標", "値", "基準", "判定"], [
+      ["時価総額", f(g.時価総額億, 0) + "億円", "100億円以上（対象）", OK(g.時価総額億 >= 100)],
+      ["売買代金（20日平均）", f(g.売買代金万, 0) + "万円", "5,000万円以上（対象）", OK(g.売買代金万 >= 5000)],
+      ["売上の伸び（年平均）", f(g.売上成長[0], 1) + "%", "10%以上", OK(g.売上成長[1])],
+      ["営業利益の伸び（年平均）", f(g.営業利益成長[0], 1) + "%", "10%以上", OK(g.営業利益成長[1])],
+      ["直近期の売上", f(g.直近売上[0], 1) + "%", "増収", OK(g.直近売上[1])],
+      ["PEG", Array.isArray(g.PEG) ? f(g.PEG[0], 2) + "（PER5倍未満・要確認）" : f(g.PEG, 2), "1倍以下が割安の目安", g.PEG === null || Array.isArray(g.PEG) ? OK(null) : OK(g.PEG <= 1)],
+      ["利益の伸び（年平均）", f(g.利益成長, 1) + "%", "PEGの計算に使う", ""], ["増収の回数", g.増収, "", ""],
+      ["営業利益率", f(g.営業利益率, 1) + "%", "", ""], ["利益率の改善", f(g.利益率の改善, 1) + "pt", "", ""],
+      ["ROE", f(g.ROE, 1) + "%", "", ""], ["営業CF", g.営業CF, "", ""], ["PER", f(g.PER, 1), "", ""], ["PSR", f(g.PSR, 2), "", ""],
+      ["PBR", f(g.PBR, 2), "", ""], ["6か月の騰落", f(g["6か月騰落"], 1) + "%", "", ""], ["値動きの荒さ", f(g.荒さ, 0), "0＝穏やか〜100＝荒い", ""]]);
+  h += `<details class="card dsec" open><summary>グロース株の候補　<b>${g.対象 && g.グロース ? "載っている" : "載っていない"}</b></summary>${gr}</details>`;
+  // 連続増配株
+  h += `<details class="card dsec" open><summary>連続増配株　<b>${onRz ? "載っている" : "載っていない"}・加点 ${r.合計}/8</b></summary>` +
+    `<div class="sub">第1段階（今の状態）</div>` + tbl(["条件", "値", "基準", "判定"], r.第1段階.map(c => [c[0], f(c[1], c[0] === "PBR" || c[0] === "配当利回り" ? 2 : c[0] === "時価総額" ? 0 : 1), c[2], OK(c[3])])) +
+    `<div class="sub">第2段階（過去10期${r.期 ? "：" + r.期 : ""}）</div>` + tbl(["条件", "値", "判定"], r.第2段階.map(c => [c[0], c[1], OK(c[2])])) +
+    `<div class="sub">加点（最大8点）</div>` + tbl(["項目", "内容", "点"], r.加点.map(c => [c[0], c[1], c[2]]).concat([["合計", "", `<b>${r.合計}</b>`]])) +
+    tbl(["参考", "値"], [["連続増配", r.連続増配 === null ? "–" : r.連続増配 + "期"], ["配当（10期）", sp(r.配当10期) + (r.配当倍 ? f(r.配当倍, 2) + "倍" : "–")],
+      ["EPS（10期）", sp(r.EPS10期)], ["BPS（10期）", sp(r.BPS10期)], ["DOE（今）", f(r.DOE, 1) + "%"]]) +
+    (r.方針 ? `<details class="perdesc"><summary>有価証券報告書の配当方針</summary>${r.方針}…</details>` : "") + `</details>`;
+  // 期待値投資
+  const op = k.営業利益;
+  h += `<details class="card dsec" open><summary>期待値投資　<b>${k.通過 ? "載っている" : "載っていない"}</b></summary>` +
+    tbl(["条件", "値", "基準", "判定"], [
+      ["配当利回り", f(k.配当利回り[0], 2) + "%", "2.5%以上", OK(k.配当利回り[1])],
+      ["配当性向", f(k.配当性向[0], 0) + "%", "50%以下", OK(k.配当性向[1])],
+      ["売上高", sp(k.売上[2]) + `${k.売上[0]}期連続で増収`, "10期連続で増加", OK(k.売上[1])],
+      ["営業利益", op[1] === null ? `<span class="s">売上の条件を満たさないため未確認</span>` : sp(op[2]) + `9期前の${f(op[0], 2)}倍・減益${op[3]}回`, "10期で増加傾向", OK(op[1])],
+      ["PERの目安", sig ? `<span class="${sig === "買い" ? "buy" : "sell"}">${sig}</span>` : "–", "幅の中央値以下で買い", ""]]) + `</details>`;
+  return h;
 }
 function drawRecent() {
   const rec = (store("per_recent") || []).filter(c => IDX.stocks[c]);

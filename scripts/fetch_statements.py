@@ -87,7 +87,7 @@ def load() -> pd.DataFrame:
     return pd.DataFrame(columns=["code", "決算期", "取得日", "error"])
 
 
-def update(codes: list, since: str = "") -> pd.DataFrame:
+def update(codes: list, since: str = "", retry_empty: bool = False) -> pd.DataFrame:
     """対象の銘柄について、無い・古い・前回失敗した分だけ取り直す。
 
     since: この日より前に取った分も古いとみなす（あとから項目を増やしたとき用）。
@@ -97,7 +97,7 @@ def update(codes: list, since: str = "") -> pd.DataFrame:
     ok = old[(old["error"].fillna("").isin(["", "財務諸表なし"])) & (old["取得日"] >= fresh_cut)]
     # 2026-09-26 に取得制限で空になった分は「財務諸表なし」と記録されているので、
     # 取り直すときは --retry-empty を付ける
-    if "--retry-empty" in sys.argv:
+    if retry_empty or "--retry-empty" in sys.argv:
         ok = ok[ok["error"].fillna("") == ""]
     todo = [c for c in codes if c not in set(ok["code"])]
     if not todo:
@@ -123,6 +123,14 @@ def update(codes: list, since: str = "") -> pd.DataFrame:
     new = pd.DataFrame(rows)
     # 2回取っても空だった銘柄は、本当に財務諸表が無いものとして30日間は取りにいかない
     new.loc[new["error"] == "空", "error"] = "財務諸表なし"
+    # 取り直しに失敗した銘柄は、前に取れていた決算書を残す（2026-10-18、全銘柄を取り直したときに
+    # 取得制限で約100銘柄が空になり、前のデータまで消えた）
+    bad = set(new.loc[new["error"].fillna("") != "", "code"])
+    had = set(old.loc[old["error"].fillna("") == "", "code"])
+    restore = bad & had
+    if restore:
+        new = new[~new["code"].isin(restore)]
+        print(f"  取れなかった{len(restore)}銘柄は、前に取った決算書をそのまま使います", flush=True)
     keep = old[~old["code"].isin(new["code"])]
     out = pd.concat([keep, new], ignore_index=True)
     OUT.parent.mkdir(exist_ok=True)

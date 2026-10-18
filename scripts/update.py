@@ -4,7 +4,7 @@
   1. 財務（1株あたりの値）が古ければ取り直す（週1回・遅い）
   2. 株価を取り直す（全銘柄・約1分）
   3. ページを作り直す（check15.html・growth.html・renzoku.html・kitaichi.html と、トップ index.html・共通する銘柄 common.html）。
-     トップの「PER検索」が読む docs/per/コード.csv・index.json もここで作る
+     トップの「銘柄検索」が読む docs/per/（PERの履歴・銘柄一覧）と docs/detail/（4つの条件の全要素）もここで作る
      候補の配当履歴もここで取る。15指標の決算書は30日間使い回す
   4. GitHub に反映する（変化があったときだけ）
 
@@ -124,6 +124,9 @@ def main() -> int:
             print("  [!] PERの履歴（PER検索用）は作れませんでした（ほかのページは更新済み）")
         elif run(py + [str(BASE / "build_per_page.py")]) != 0:
             print("  [!] PER検索の銘柄一覧は作れませんでした")
+        # 検索結果に出す、4つの条件の全要素（全銘柄。決算書は30日ごとに取り直すので、その回は時間がかかる）
+        if run(py + [str(BASE / "build_detail.py")], timeout=3 * 3600) != 0:
+            print("  [!] 検索結果の4つの条件の要素は作れませんでした")
     else:
         print("  [!] EDINET のAPIキーが無いので、連続増配株・期待値投資のページは作りません")
     # トップと「共通する銘柄」（上の4ページの結果を読むので最後に作る）

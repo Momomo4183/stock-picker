@@ -3,7 +3,7 @@
 
   1. 財務（1株あたりの値）が古ければ取り直す（週1回・遅い）
   2. 株価を取り直す（全銘柄・約1分）
-  3. ページを作り直す（check15.html・growth.html・renzoku.html と、トップ index.html・common.html）。
+  3. ページを作り直す（check15.html・growth.html・renzoku.html・kitaichi.html と、トップ index.html・common.html）。
      候補の配当履歴もここで取る。15指標の決算書は30日間使い回す
   4. GitHub に反映する（変化があったときだけ）
 
@@ -95,8 +95,10 @@ def main() -> int:
     if (ROOT / ".edinet_key").exists():
         if run(py + [str(BASE / "build_renzoku.py")]) != 0:
             print("  [!] 連続増配株のページは作れませんでした（ほかのページは更新済み）")
+        if run(py + [str(BASE / "build_kitaichi.py")]) != 0:
+            print("  [!] 期待値投資のページは作れませんでした（ほかのページは更新済み）")
     else:
-        print("  [!] EDINET のAPIキーが無いので、連続増配株のページは作りません")
+        print("  [!] EDINET のAPIキーが無いので、連続増配株・期待値投資のページは作りません")
     # トップと「3つに共通する銘柄」（上の3ページの結果を読むので最後に作る）
     if run(py + [str(BASE / "build_top.py")]) != 0:
         print("  [!] トップ・3つに共通する銘柄のページは作れませんでした")

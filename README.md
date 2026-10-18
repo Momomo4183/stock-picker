@@ -11,6 +11,7 @@
 | 高配当株 15指標チェック（docs/check15.html） | 下を参照 |
 | グロース株の候補（docs/growth.html） | 下を参照 |
 | 連続増配株（docs/renzoku.html） | 下を参照 |
+| 期待値投資（docs/kitaichi.html） | 下を参照 |
 | 3つに共通する銘柄（docs/common.html） | 上の3ページすべてに載る銘柄。0件なら 高配当株 × 連続増配株 |
 
 2026-10-18 に、最初のページ「配当株の買い場」（PER12以下・PBR1以下・配当利回り3%以上・
@@ -66,6 +67,14 @@ PEGの成長率は純利益と営業利益の伸びの低いほうを使い、�
 公開しない）。配当は株式分割の扱いがそろっている yfinance の配当履歴を決算期ごとに合計して使う。
 細かい決まりは `scripts/build_renzoku.py` の先頭に書いた。
 
+## 期待値投資（docs/kitaichi.html）
+
+配当利回り2.5%以上・配当性向50%以下で、売上高が10期連続で増え（11期分）、営業利益が10期で増加傾向
+（直近が9期前より多く、回帰直線が右上がり。減益の期があってもよい）の銘柄。過去10年の毎月のPER
+（月末の株価÷発表済みの通期EPS）の幅（下から1割〜上から1割）と、今のPERの位置を出し、
+中央値以下を「買い」、上を「売り」の目安とする。売上・EPSは有価証券報告書の主要な経営指標、
+営業利益は連結損益計算書（1冊に2期分なので5冊）から取る。細かい決まりは `scripts/build_kitaichi.py` の先頭。
+
 ## データの出どころ
 
 | データ | 出どころ | 取り直す頻度 |
@@ -93,6 +102,7 @@ scripts/build_check15.py      高配当株 15指標チェック
 scripts/build_growth.py       グロース株の候補
 scripts/fetch_edinet.py       EDINET から有価証券報告書を取る
 scripts/build_renzoku.py      連続増配株
+scripts/build_kitaichi.py     期待値投資
 scripts/build_top.py          トップと3つに共通する銘柄
 backtest/                     条件の検証（過去14年）。結果は backtest/結果/
 data/                         取得したデータ（リポジトリには含めない）

@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 NAV = [("./", "トップ"), ("check15.html", "高配当株 15指標チェック"), ("growth.html", "グロース株の候補"),
-       ("renzoku.html", "連続増配株"), ("common.html", "3つに共通する銘柄")]
+       ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"), ("common.html", "3つに共通する銘柄")]
 CSS = """:root{--bg:#f6f7f9;--card:#fff;--ink:#16202a;--sub:#5d6b78;--line:#e2e7ec;--accent:#0c6f79;--hi:#eef6f6;--good:#0b7a4b;--warn:#b25c00}
 @media(prefers-color-scheme:dark){:root{--bg:#0e1419;--card:#161f26;--ink:#e6ecf0;--sub:#9aa9b4;--line:#243039;--accent:#4fb6bf;--hi:#12303350;--good:#4cc38a;--warn:#f0a050}}
 *{box-sizing:border-box}
@@ -65,9 +65,12 @@ def build(docs: Path) -> dict:
                      "PER": r["PER"], "PBR": r["PBR"], "ROE": r["ROE"], "DOE": r["DOE"],
                      "業種": r["業種"]})
     rows.sort(key=lambda x: (-x["連続増配の加点"], -x["15指標の合格"][0], x["PEG"][0] if isinstance(x["PEG"], list) else (x["PEG"] or 9)))
+    kt = docs / "kitaichi.json"
+    n_kt = json.loads(kt.read_text(encoding="utf-8"))["count"] if kt.exists() else None
     payload = {"generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "asof": rz["asof"], "mode": mode,
                "count": len(rows), "counts": {"高配当株": len(C), "グロース株": len(G), "連続増配株": len(R),
-                                              "3つ": len(three), "高配当株 × 連続増配株": len(both)},
+                                              "3つ": len(three), "高配当株 × 連続増配株": len(both),
+                                              "期待値投資": n_kt},
                "rows": rows}
     (docs / "common.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     (docs / "common.html").write_text(render_common(payload), encoding="utf-8")
@@ -84,6 +87,8 @@ def render_top(p: dict, c15: dict, gr: dict, rz: dict) -> str:
          "売上・営業利益が年10%以上伸びている銘柄。PEG（PER÷利益の伸び）で割安さを見る。"),
         ("renzoku.html", "連続増配株", f"{n['連続増配株']}銘柄",
          "今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びで加点。"),
+        ("kitaichi.html", "期待値投資", f"{n['期待値投資']}銘柄" if n.get("期待値投資") is not None else "",
+         "配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPERの幅と、今のPERの位置（買い・売りの目安）を表示。"),
         ("common.html", "3つに共通する銘柄" if p["mode"] == "3つ" else "高配当株 × 連続増配株", f"{p['count']}銘柄",
          "上の3つのページすべてに載っている銘柄。" if p["mode"] == "3つ"
          else "3つすべてに載る銘柄が無いため、高配当株と連続増配株の両方に載る銘柄。"),

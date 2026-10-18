@@ -197,7 +197,7 @@ td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line
 #toast{position:fixed;left:0;right:0;bottom:18px;margin:0 auto;width:max-content;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;text-align:center;z-index:10;box-shadow:0 4px 14px #0003}
 </style></head><body>
 <header><h1>グロース株の候補</h1><div class="meta" id="meta"></div>
-<div class="nav"><a href="./">トップ</a><a href="check15.html">高配当株 15指標チェック</a><a href="renzoku.html">連続増配株</a><a href="common.html">3つに共通する銘柄</a></div></header>
+<div class="nav"><a href="./">トップ</a><a href="check15.html">高配当株 15指標チェック</a><a href="renzoku.html">連続増配株</a><a href="kitaichi.html">期待値投資</a><a href="common.html">3つに共通する銘柄</a></div></header>
 <section>
 <div class="desc"><b>条件</b>　<span id="cond"></span><br>
 並び順は<b>PEG</b>（PER÷利益の成長率）の低い順＝成長の速さに対して株価が安い順です。PEG 1倍以下が割安の目安。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー。<br>

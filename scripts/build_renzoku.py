@@ -7,10 +7,13 @@
   第2段階（過去10期・必須）  EPS 赤字が1期も無い・9期前の2倍以上
                              BPS 10期ともプラス
                              配当 10期で減配は1回まで・無配の期が無い
-  加点（2026-10-18 ご本人の指定）  累進配当の記載 +1 に、BPS と DOE の組み合わせの点を足す（最大5点）
+  加点（2026-10-18 ご本人の指定）  累進配当の記載 +1 に、BPS と DOE の組み合わせの点を足す
         BPS・DOE の点は、当てはまるもののうち一番高いもの（重ねて足さない）:
           DOE の記載だけ +1 ／ BPS が9期前より伸びた +1 ／ BPS が毎期増えた +2 ／
           BPS が伸びた かつ DOE +3 ／ BPS が毎期増えた かつ DOE +4
+        さらに（2026-10-18 追加）「増配を続ける余力」を各 +1（最大8点）:
+          連続増配が5期以上 ／ 配当性向50%以下（予想配当÷実績EPS） ／
+          営業CFで配当をまかなえている（yfinance の決算書4〜5期すべてで 営業CF ＞ 配当の支払額）
 
 データ:
   第1段階 … ほかのページと同じ（株価・1株あたりの値・yfinance の決算書）。
@@ -43,6 +46,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import load  # noqa: E402
 import fetch_edinet  # noqa: E402
+import fetch_statements  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 STAGE1 = {"PER": 12, "PBR": 1.3, "ROE": 7, "ROA": 3, "配当利回り": 3, "自己資本比率": 35, "時価総額": 100}
@@ -181,6 +185,15 @@ def build(out_dir: Path) -> dict:
     print(f"第1段階を通った銘柄 {len(c1)}", flush=True)
     raw = fetch_edinet.ten_years(dict(zip(c1["code"], c1["決算期"])))
     act = actions_for(c1["code"].tolist())
+    # 営業CFと配当の支払額（配当の支払額は 2026-10-18 に足した項目なので、それより前に取った分は取り直す）
+    stm = fetch_statements.update(c1["code"].tolist(), since="2026-10-18")
+    stm = stm[stm["error"].fillna("") == ""]
+    cover = {}
+    for c, g in stm.groupby("code"):
+        g = g.dropna(subset=["営業CF", "配当支払"])
+        g = g[g["配当支払"] < 0]
+        if len(g) >= 3:
+            cover[c] = float((g["営業CF"] / -g["配当支払"]).min())   # 一番苦しかった期で、配当の何倍の営業CFがあったか
     rows = []
     for _, r in c1.iterrows():
         rec = raw.get(r["code"])
@@ -189,13 +202,21 @@ def build(out_dir: Path) -> dict:
         words = (rec or {}).get("words", {})
         doe, up, every = bool(words.get("DOE")), (x.get("BPS倍") or 0) > 1, bool(x.get("BPS毎期増"))
         bd = (4, "BPS毎期増×DOE") if every and doe else (3, "BPS伸び×DOE") if up and doe else              (2, "BPS毎期増") if every else (1, "BPS伸び") if up else (1, "DOE") if doe else (0, "")
-        pts = {"累進配当": 1 if words.get("累進配当") else 0, "BPS・DOE": bd[0], "組み合わせ": bd[1]}
+        payout = r.get("配当性向%")
+        payout = float(payout) if pd.notna(payout) and payout > 0 else None
+        cv = cover.get(r["code"])
+        pts = {"累進配当": 1 if words.get("累進配当") else 0, "BPS・DOE": bd[0], "組み合わせ": bd[1],
+               "連続増配5期": 1 if (x.get("連続増配") or 0) >= 5 else 0,
+               "性向50以下": 1 if payout is not None and payout <= 50 else 0,
+               "CFで配当": 1 if cv is not None and cv > 1 else 0}
         bv, dr = r.get("bookValue"), r.get("dividendRate")
         rows.append({
             "銘柄": f"{r['code']} {r['name']}",
             "通過": ok,
             "理由": "・".join(why),
-            "加点": pts["累進配当"] + pts["BPS・DOE"],
+            "加点": pts["累進配当"] + pts["BPS・DOE"] + pts["連続増配5期"] + pts["性向50以下"] + pts["CFで配当"],
+            "配当性向": round(payout) if payout is not None else None,
+            "CF倍": round(cv, 1) if cv is not None else None,
             "内訳": pts,
             "株価": round(float(r["株価"]), 1),
             "配当利回り": round(float(r["配当利回り%"]), 2),
@@ -276,12 +297,14 @@ svg.sp{vertical-align:middle}
 <section>
 <div class="desc"><b>第1段階（今の状態）</b>　PER12倍以下・PBR1.3倍以下・ROE7%以上・ROA3%以上・配当利回り3%以上・自己資本比率35%以上・時価総額100億円以上<br>
 <b>第2段階（過去10期）</b>　EPSが赤字の期なし・9期前の2倍以上／BPSが10期ともプラス／配当は減配1回まで・無配なし<br>
-両方を満たした銘柄を<b>加点</b>の多い順に並べています（累進配当+1に、BPSとDOEの組み合わせで最大+4）。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー、<b>方針</b>で有価証券報告書の配当方針。</div>
+両方を満たした銘柄を<b>加点</b>の多い順に並べています（累進配当+1、BPSとDOEの組み合わせで最大+4、増配を続ける余力で最大+3）。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー、<b>方針</b>で有価証券報告書の配当方針。</div>
 <details><summary>各列の見方</summary><dl>
-<dt>加点</dt><dd>累進配当の記載 +1 に、BPSとDOEの組み合わせの点を足します（最大5点）。BPS・DOEの点は当てはまる中で一番高いもの：DOEの記載だけ +1、BPSが9期前より伸びた +1、BPSが毎期増えた +2、BPSが伸びた かつ DOE +3、BPSが毎期増えた かつ DOE +4。累進配当・DOEは最新の有価証券報告書の文章（配当政策など）に言葉があるかで判定。決算説明資料や中期経営計画にだけ書いてある場合は拾えません。</dd>
+<dt>加点</dt><dd>累進配当の記載 +1 に、BPSとDOEの組み合わせの点を足します。BPS・DOEの点は当てはまる中で一番高いもの：DOEの記載だけ +1、BPSが9期前より伸びた +1、BPSが毎期増えた +2、BPSが伸びた かつ DOE +3、BPSが毎期増えた かつ DOE +4。さらに、連続増配5期以上 +1、配当性向50%以下 +1、営業CFで配当をまかなえている +1（最大8点）。累進配当・DOEは最新の有価証券報告書の文章（配当政策など）に言葉があるかで判定。決算説明資料や中期経営計画にだけ書いてある場合は拾えません。</dd>
 <dt>連続増配</dt><dd>直近の期から何期続けて増配しているか（有価証券報告書の1株あたり配当、株式分割は調整済み）。記念配当で増えた・減った期も、そのまま数えます。</dd>
 <dt>配当（10期）</dt><dd>10期分の1株配当の推移と、10期前→直近の倍率、減配の回数。</dd>
 <dt>EPS・BPS（10期）</dt><dd>9期前に対する倍率。BPSの「毎期」は10期続けて増えた印。</dd>
+<dt>配当性向</dt><dd>予想配当÷実績EPS（%）。50%以下は増配の余力がある目安（緑）、70%超は橙。</dd>
+<dt>営業CF÷配当</dt><dd>決算書（4〜5期）のうち一番苦しかった期で、営業キャッシュフローが配当の支払額の何倍あったか。1倍を超えていれば、どの期も現金で配当をまかなえている（緑）。</dd>
 <dt>DOE</dt><dd>今の予想配当÷1株純資産（%）。「記載」はDOEを方針に使うと書いてある印。</dd>
 <dt>ROE・ROA・自己資本比率</dt><dd>直近の決算期の値（純利益÷純資産、純利益÷総資産、純資産÷総資産）。</dd>
 <dt>第2段階で落ちた銘柄</dt><dd>上のチェックを入れると、第1段階だけ通った銘柄も理由つきで灰色で表示します。</dd>
@@ -293,8 +316,8 @@ svg.sp{vertical-align:middle}
 <script>
 const D = __DATA__;
 const QUOTE = code => `https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric=${code}.T`;
-const COLS = ["銘柄","加点","株価","配当利回り","連続増配","配当10期","EPS倍","BPS10期","DOE","PER","PBR","ROE","ROA","自己資本比率","時価総額","業種","方針"];
-const HEAD = {"配当10期":"配当（10期）","EPS倍":"EPS（10期）","BPS10期":"BPS（10期）","配当利回り":"利回り%","自己資本比率":"自己資本比率%","ROE":"ROE%","ROA":"ROA%","DOE":"DOE%","時価総額":"時価総額億"};
+const COLS = ["銘柄","加点","株価","配当利回り","連続増配","配当10期","配当性向","CF倍","EPS倍","BPS10期","DOE","PER","PBR","ROE","ROA","自己資本比率","時価総額","業種","方針"];
+const HEAD = {"配当10期":"配当（10期）","配当性向":"配当性向%","CF倍":"営業CF÷配当","EPS倍":"EPS（10期）","BPS10期":"BPS（10期）","配当利回り":"利回り%","自己資本比率":"自己資本比率%","ROE":"ROE%","ROA":"ROA%","DOE":"DOE%","時価総額":"時価総額億"};
 const SORTKEY = {"配当10期":"配当倍","BPS10期":"BPS倍"};
 let sortCol = null, sortAsc = false, open = new Set();
 document.getElementById("meta").textContent = `株価 ${D.asof.株価} 時点 ／ 作成 ${D.generated}`;
@@ -316,6 +339,7 @@ function cell(k, r) {
     if (!r.通過) return `<td class="s">–</td>`;
     const b = r.内訳, m = [];
     if (b.累進配当) m.push("累進+1"); if (b.組み合わせ) m.push(`${b.組み合わせ}+${b["BPS・DOE"]}`);
+    if (b.連続増配5期) m.push("増配5期+1"); if (b.性向50以下) m.push("性向+1"); if (b.CFで配当) m.push("CF+1");
     return `<td><span class="pt">${v}</span> <small class="s">${m.join("・")}</small></td>`;
   }
   if (k === "連続増配") return `<td class="${v >= 5 ? "g" : ""}">${v === null || v === undefined ? "–" : v + "期"}</td>`;
@@ -324,6 +348,8 @@ function cell(k, r) {
   if (k === "BPS10期") return `<td>${spark(v)}${r.BPS倍 ? f(r.BPS倍, 2) + "倍" : "–"}${r.BPS毎期増 ? '<span class="mk">毎期</span>' : ""}</td>`;
   if (k === "DOE") return `<td>${f(v, 1)}${r.DOE記載 ? '<span class="mk">記載</span>' : ""}${r.累進配当 ? '<span class="mk">累進</span>' : ""}</td>`;
   if (k === "株価") return `<td>${f(v, 1)}</td>`;
+  if (k === "配当性向") return `<td class="${v !== null && v <= 50 ? "g" : v > 70 ? "w" : ""}">${f(v, 0)}</td>`;
+  if (k === "CF倍") return `<td class="${v > 1 ? "g" : v !== null ? "w" : ""}">${v === null || v === undefined ? "–" : f(v, 1) + "倍"}</td>`;
   if (["配当利回り","PBR"].includes(k)) return `<td>${f(v, 2)}</td>`;
   if (["PER","ROE","ROA","自己資本比率"].includes(k)) return `<td>${f(v, 1)}</td>`;
   if (k === "時価総額") return `<td>${f(v, 0)}</td>`;

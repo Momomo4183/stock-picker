@@ -140,7 +140,7 @@ __NAV__</header>
 <section>
 <div class="desc" id="desc"></div>
 <details><summary>各列の見方</summary><dl>
-<dt>連続増配の加点</dt><dd>連続増配株のページの加点（累進配当+1、BPSとDOEの組み合わせで最大+4）。</dd>
+<dt>連続増配の加点</dt><dd>連続増配株のページの加点（累進配当+1、BPSとDOEの組み合わせで最大+4、連続増配5期以上・配当性向50%以下・営業CFで配当をまかなえている で各+1、最大8点）。</dd>
 <dt>15指標</dt><dd>高配当株 15指標チェックで、基準を満たした数／判定できた数。</dd>
 <dt>PEG</dt><dd>グロース株の候補のページの PER÷利益の伸び。1倍以下が割安の目安。</dd>
 <dt>連続増配・配当（10期）・EPS・BPS</dt><dd>連続増配株のページと同じ（有価証券報告書の10期分）。</dd>
@@ -181,6 +181,7 @@ function cell(k, r) {
   if (k === "連続増配の加点") {
     const b = r.加点の内訳, m = [];
     if (b.累進配当) m.push("累進+1"); if (b.組み合わせ) m.push(`${b.組み合わせ}+${b["BPS・DOE"]}`);
+    if (b.連続増配5期) m.push("増配5期+1"); if (b.性向50以下) m.push("性向+1"); if (b.CFで配当) m.push("CF+1");
     return `<td><span class="pt">${v}</span> <small class="s">${m.join("・")}</small></td>`;
   }
   if (k === "15指標の合格") return `<td class="pt">${v[0]}/${v[1]}</td>`;

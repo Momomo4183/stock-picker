@@ -42,6 +42,8 @@ FIELDS = [
     ("現金", ["Cash And Cash Equivalents",
               "Cash Cash Equivalents And Short Term Investments"], "balance"),
     ("営業CF", ["Operating Cash Flow"], "cash"),
+    # 2026-10-18 追加（連続増配株の「営業CFで配当をまかなえているか」）。支払いなのでマイナスで入る
+    ("配当支払", ["Cash Dividends Paid", "Common Stock Dividend Paid"], "cash"),
 ]
 
 
@@ -85,10 +87,13 @@ def load() -> pd.DataFrame:
     return pd.DataFrame(columns=["code", "決算期", "取得日", "error"])
 
 
-def update(codes: list) -> pd.DataFrame:
-    """対象の銘柄について、無い・古い・前回失敗した分だけ取り直す。"""
+def update(codes: list, since: str = "") -> pd.DataFrame:
+    """対象の銘柄について、無い・古い・前回失敗した分だけ取り直す。
+
+    since: この日より前に取った分も古いとみなす（あとから項目を増やしたとき用）。
+    """
     old = load()
-    fresh_cut = (dt.date.today() - dt.timedelta(days=MAX_AGE_DAYS)).isoformat()
+    fresh_cut = max((dt.date.today() - dt.timedelta(days=MAX_AGE_DAYS)).isoformat(), since)
     ok = old[(old["error"].fillna("").isin(["", "財務諸表なし"])) & (old["取得日"] >= fresh_cut)]
     # 2026-09-26 に取得制限で空になった分は「財務諸表なし」と記録されているので、
     # 取り直すときは --retry-empty を付ける

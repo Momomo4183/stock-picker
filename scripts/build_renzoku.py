@@ -54,14 +54,18 @@ ACTIONS = ROOT / "data" / "actions.json"
 EFFECTIVE = 4      # yfinance の分割日は権利落ち日。効力発生日（数日後）に直す
 
 
-def actions_for(codes: list) -> dict:
-    """株式分割と配当の履歴（yfinance、分割調整済み）。7日間使い回す。"""
+def actions_for(codes: list, max_age: int = 7) -> dict:
+    """株式分割と配当の履歴（yfinance、分割調整済み）。max_age 日間使い回す。"""
     import yfinance as yf
     cache = json.loads(ACTIONS.read_text(encoding="utf-8")) if ACTIONS.exists() else {}
-    limit = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-    for c in codes:
-        if c in cache and cache[c]["取得日"] >= limit:
-            continue
+    limit = (datetime.now() - timedelta(days=max_age)).strftime("%Y-%m-%d")
+    todo = [c for c in codes if not (c in cache and cache[c]["取得日"] >= limit)]
+    if len(todo) > 50:
+        print(f"  分割・配当の履歴 {len(todo)}銘柄を取得します", flush=True)
+    for i, c in enumerate(todo):
+        if i and i % 500 == 0:
+            print(f"    {i}/{len(todo)}", flush=True)
+            ACTIONS.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")   # 途中で止まっても続きから
         try:
             t = yf.Ticker(f"{c}.T")
             sp, dv = t.splits, t.dividends
@@ -96,7 +100,7 @@ def adjust(rec: dict, act: dict) -> dict:
 
     def pick(v, raw, filed, nxt):
         """「当時のまま」と「提出時点で直してある」のうち、新しい期となめらかにつながるほう。"""
-        if raw == filed or v is None or v <= 0 or not nxt:
+        if raw == filed or v is None or v <= 0 or not nxt or nxt <= 0:   # 債務超過などでマイナスの期は比べない
             return filed
         return min((raw, filed), key=lambda c: abs(math.log(v / c / nxt)))
 

@@ -75,6 +75,13 @@ PEGの成長率は純利益と営業利益の伸びの低いほうを使い、�
 中央値以下を「買い」、上を「売り」の目安とする。売上・EPSは有価証券報告書の主要な経営指標、
 営業利益は連結損益計算書（1冊に2期分なので5冊）から取る。細かい決まりは `scripts/build_kitaichi.py` の先頭。
 
+## PER検索（Googleスプレッドシート用のデータ、docs/per/コード.csv）
+
+銘柄ごとに過去10年の毎月の 株価・EPS・PER を CSV で公開する（`scripts/build_per_data.py`）。
+ご本人のスプレッドシートの「PER検索」シートが `IMPORTDATA` で読み、今の株価は `GOOGLEFINANCE` で取って
+今のPERと幅の中の位置をその場で出す。PERの作り方は期待値投資と同じ。シートの式は
+`自動トレード\PER検索_貼り付け用.txt`（公開リポジトリの外）。
+
 ## データの出どころ
 
 | データ | 出どころ | 取り直す頻度 |
@@ -103,6 +110,7 @@ scripts/build_growth.py       グロース株の候補
 scripts/fetch_edinet.py       EDINET から有価証券報告書を取る
 scripts/build_renzoku.py      連続増配株
 scripts/build_kitaichi.py     期待値投資
+scripts/build_per_data.py     スプレッドシート用の銘柄ごとのPER（docs/per/）
 scripts/build_top.py          トップと共通する銘柄
 backtest/                     条件の検証（過去14年）。結果は backtest/結果/
 data/                         取得したデータ（リポジトリには含めない）

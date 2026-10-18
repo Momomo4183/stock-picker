@@ -26,6 +26,115 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 NAV = [("./", "トップ"), ("check15.html", "高配当株 15指標チェック"), ("growth.html", "グロース株の候補"),
        ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"), ("common.html", "共通する銘柄")]
+# PER検索（2026-10-18 ご本人の依頼でトップに検索欄を置いた）。銘柄ごとのPERは build_per_data.py が
+# docs/per/コード.csv に、銘柄一覧は build_per_page.py が docs/per/index.json に作る
+SEARCH_CSS = """form{display:flex;gap:8px;margin:4px 0 12px}
+input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+button.go{font:inherit;font-weight:700;padding:9px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.name{font-size:17px;font-weight:700}.name a{color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px}
+.k{font-size:11.5px;color:var(--sub)}.v{font-size:18px;font-weight:700}
+.buy{color:var(--good)}.sell{color:var(--warn)}.s{color:var(--sub)}
+.big{width:100%;height:auto}
+.legend{font-size:11.5px;color:var(--sub);margin-bottom:4px}
+.msg{color:var(--warn);font-size:13px;margin:6px 2px}
+.recent{font-size:12.5px;color:var(--sub)}.recent button{font:inherit;font-size:12px;color:var(--accent);background:var(--hi);border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin:2px 4px 2px 0;cursor:pointer}
+.search{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.st{font-weight:700;font-size:15.5px;color:var(--accent)}.sd{font-size:12.5px;color:var(--sub);margin:2px 0 8px}
+.search .card{background:var(--bg)}
+.perdesc{font-size:12px;color:var(--sub);margin-top:6px}.perdesc summary{cursor:pointer;color:var(--ink)}
+"""
+SEARCH_HTML = """<div class="search"><div class="st">PER検索</div><div class="sd">銘柄コードか銘柄名を入れると、過去10年のPERの推移と幅、今のPERの位置（買い・売りの目安）を表示します。</div>
+<form id="f"><input id="q" list="codes" placeholder="銘柄コード（例 7203）か銘柄名" autocomplete="off" inputmode="search"><button class="go">検索</button></form>
+<datalist id="codes"></datalist>
+<div class="recent" id="recent"></div>
+<div class="msg" id="msg"></div>
+<div id="out"></div>
+<details class="perdesc"><summary>PERの見方</summary>PER＝月末の株価 ÷ その時点で発表済みの通期EPS（有価証券報告書、株式分割は調整済み。発表は期末の約3か月後として扱う）。
+幅は過去10年の毎月のPERの<b>下から1割〜上から1割</b>、真ん中は<b>中央値</b>。今のPERが中央値以下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>の目安（期待値投資のページと同じ）。EPSが赤字の月は除いています。PERの幅は過去の話で、同じ幅に戻る保証はありません。</details>
+<div class="sd" id="perCount"></div></div>
+"""
+SEARCH_JS = """let IDX = {stocks: {}};
+const QUOTE = code => `https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric=${code}.T`;
+const f = (x, d) => x === null || x === undefined || isNaN(x) ? "–" : Number(x).toLocaleString("ja-JP", {minimumFractionDigits: d, maximumFractionDigits: d});
+const q = (a, p) => { const s = a.slice().sort((x, y) => x - y), i = (s.length - 1) * p, lo = Math.floor(i); return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo); };
+function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "null"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
+function perChart(s, b, w, h) {
+  const vals = s.map(x => x[1]).concat([b.now]).filter(x => x !== null);
+  const top = Math.max(...vals, b.hi) * 1.05, bot = Math.max(0, Math.min(...vals, b.lo) * 0.9);
+  const padL = 36, padB = 20, padT = 8, padR = 12;
+  const X = i => padL + i * (w - padL - padR) / s.length, Y = v => padT + (top - v) / (top - bot) * (h - padT - padB);
+  let g = `<svg viewBox="0 0 ${w} ${h}" class="big">`;
+  g += `<rect x="${padL}" y="${Y(b.hi)}" width="${w - padL - padR}" height="${Y(b.lo) - Y(b.hi)}" fill="var(--band)"/>`;
+  g += `<line x1="${padL}" x2="${w - padR}" y1="${Y(b.mid)}" y2="${Y(b.mid)}" stroke="var(--sub)" stroke-dasharray="3 3" stroke-width="1"/>`;
+  let seg = [], path = "";
+  s.forEach((x, i) => { if (x[1] === null) { if (seg.length) path += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${seg.join(" ")}"/>`; seg = []; } else seg.push(X(i) + "," + Y(x[1])); });
+  if (seg.length) path += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${seg.join(" ")}"/>`;
+  g += path;
+  if (b.now !== null) {
+    g += `<circle cx="${X(s.length)}" cy="${Y(b.now)}" r="4.5" fill="${b.now <= b.mid ? "var(--good)" : "var(--warn)"}"/>`;
+    g += `<text x="${X(s.length) - 6}" y="${Y(b.now) - 8}" font-size="11" text-anchor="end" fill="var(--ink)">今 ${b.now.toFixed(1)}</text>`;
+  }
+  for (const v of [b.hi, b.mid, b.lo]) g += `<text x="${padL - 5}" y="${Y(v) + 4}" font-size="11" text-anchor="end" fill="var(--sub)">${v.toFixed(1)}</text>`;
+  let last = "";
+  s.forEach((x, i) => { const y = x[0].slice(0, 4); if (y !== last && x[0].endsWith("-01")) g += `<text x="${X(i)}" y="${h - 5}" font-size="11" text-anchor="middle" fill="var(--sub)">${y}</text>`; last = y; });
+  return g + "</svg>";
+}
+function resolve(text) {
+  text = text.trim().replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).toUpperCase();
+  const m = text.match(/^([0-9][0-9A-Z]{3})/);
+  if (m && IDX.stocks[m[1]]) return m[1];
+  const hit = Object.entries(IDX.stocks).filter(([c, v]) => v[0].includes(text.trim()));
+  return hit.length === 1 ? hit[0][0] : (m ? m[1] : null);
+}
+async function show(code) {
+  const msg = document.getElementById("msg"), out = document.getElementById("out");
+  msg.textContent = ""; out.innerHTML = "";
+  if (!code) { msg.textContent = "銘柄コード（4桁）か、銘柄名の一部を入れてください。"; return; }
+  const info = IDX.stocks[code];
+  if (!info) { msg.textContent = `${code} のデータはありません（決算書や有価証券報告書が取れない銘柄、上場して間もない銘柄など）。`; return; }
+  let rows;
+  try {
+    const t = await (await fetch(`per/${code}.csv`, {cache: "no-cache"})).text();
+    rows = t.trim().split("\\n").slice(1).map(l => { const [ym, p, e, per] = l.split(","); return [ym, +p, +e, per === "" ? null : +per]; });
+  } catch (e) { msg.textContent = "データを読めませんでした。少し待ってからもう一度お試しください。"; return; }
+  const pers = rows.map(r => r[3]).filter(x => x !== null);
+  const eps = rows[rows.length - 1][2], price = info[1];
+  const now = eps > 0 ? price / eps : null;
+  const b = pers.length >= 12 ? {lo: q(pers, 0.1), mid: q(pers, 0.5), hi: q(pers, 0.9), now} : null;
+  const pos = b && now !== null && b.hi > b.lo ? Math.round((now - b.lo) / (b.hi - b.lo) * 100) : null;
+  const sig = b && now !== null ? (now <= b.mid ? "買い" : "売り") : null;
+  let h = `<div class="card"><div class="name"><a href="${QUOTE(code)}" target="_blank" rel="noopener">${code} ${info[0]}</a></div>
+  <div class="grid">
+   <div><div class="k">目安</div><div class="v ${sig === "買い" ? "buy" : "sell"}">${sig || "–"} <small class="s">${pos === null ? "" : pos + "%"}</small></div></div>
+   <div><div class="k">今のPER</div><div class="v">${now === null ? "赤字" : f(now, 1)}</div></div>
+   <div><div class="k">PERの幅（下〜上）</div><div class="v">${b ? f(b.lo, 1) + "〜" + f(b.hi, 1) : "–"}</div></div>
+   <div><div class="k">真ん中（中央値）</div><div class="v">${b ? f(b.mid, 1) : "–"}</div></div>
+   <div><div class="k">株価（${IDX.asof}）</div><div class="v">${f(price, 1)}</div></div>
+   <div><div class="k">直近の通期EPS</div><div class="v">${f(eps, 1)}</div></div>
+  </div></div>`;
+  if (b) h += `<div class="card"><div class="legend">PERの推移（月末、${rows[0][0]}〜${rows[rows.length - 1][0]}）。帯＝幅、点線＝中央値、点＝今。位置は 0%＝幅の下、100%＝上（0未満・100超は幅の外）</div>${perChart(rows.map(r => [r[0], r[3]]), b, 680, 230)}</div>`;
+  else h += `<div class="card s">PERを出せる月が少ないため、幅は出していません（赤字の期が多い・データが短いなど）。</div>`;
+  out.innerHTML = h;
+  let rec = (store("per_recent") || []).filter(c => c !== code); rec.unshift(code); store("per_recent", rec.slice(0, 8)); drawRecent();
+  history.replaceState(null, "", "#" + code);
+}
+function drawRecent() {
+  const rec = (store("per_recent") || []).filter(c => IDX.stocks[c]);
+  document.getElementById("recent").innerHTML = rec.length ? "最近：" + rec.map(c => `<button data-c="${c}">${c} ${IDX.stocks[c][0]}</button>`).join("") : "";
+  document.querySelectorAll("#recent button").forEach(b => b.onclick = () => { document.getElementById("q").value = b.dataset.c; show(b.dataset.c); });
+}
+document.getElementById("f").onsubmit = e => { e.preventDefault(); show(resolve(document.getElementById("q").value)); };
+(async () => {
+  try { IDX = await (await fetch("per/index.json", {cache: "no-cache"})).json(); } catch (e) { document.getElementById("msg").textContent = "銘柄一覧を読めませんでした。"; return; }
+  document.getElementById("perCount").textContent = `${Object.keys(IDX.stocks).length} 銘柄から検索できます（株価 ${IDX.asof} 時点）`;
+  document.getElementById("codes").innerHTML = Object.entries(IDX.stocks).map(([c, v]) => `<option value="${c} ${v[0]}">`).join("");
+  drawRecent();
+  const h = location.hash.slice(1);
+  if (h) { document.getElementById("q").value = h; show(resolve(h)); }
+})();
+"""
 CSS = """:root{--bg:#f6f7f9;--card:#fff;--ink:#16202a;--sub:#5d6b78;--line:#e2e7ec;--accent:#0c6f79;--hi:#eef6f6;--good:#0b7a4b;--warn:#b25c00;--band:#0c6f7922}
 @media(prefers-color-scheme:dark){:root{--bg:#0e1419;--card:#161f26;--ink:#e6ecf0;--sub:#9aa9b4;--line:#243039;--accent:#4fb6bf;--hi:#12303350;--good:#4cc38a;--warn:#f0a050;--band:#4fb6bf2e}}
 *{box-sizing:border-box}
@@ -115,11 +224,11 @@ def render_top(p: dict) -> str:
 .card:hover{{border-color:var(--accent)}}
 .t{{font-weight:700;font-size:15.5px;color:var(--accent)}}.t span{{float:right;color:var(--sub);font-weight:600;font-size:12.5px}}
 .d{{font-size:12.5px;color:var(--sub);margin-top:3px}}
-</style></head><body>
+{SEARCH_CSS}</style></head><body>
 <header><h1>銘柄ピックアップ</h1><div class="meta">株価 {p['asof']['株価']} 時点 ／ 作成 {p['generated']}</div></header>
-<section>{items}
+<section>{SEARCH_HTML}{items}
 <div class="desc">更新はPCの「更新」から手動で行います。どのページも候補を並べるだけで、売買の判断はご自身で行ってください。</div>
-</section></body></html>
+</section><script>{SEARCH_JS}</script></body></html>
 """
 
 

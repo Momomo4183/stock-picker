@@ -3,3 +3,5 @@ data/
 *.pkl
 __pycache__/
 *.log
+# EDINET のAPIキー（公開しない）
+.edinet_key

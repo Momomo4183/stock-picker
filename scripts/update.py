@@ -3,7 +3,7 @@
 
   1. 財務（1株あたりの値）が古ければ取り直す（週1回・遅い）
   2. 株価を取り直す（全銘柄・約1分）
-  3. ページを作り直す（docs/index.html・check15.html・growth.html・renzoku.html）。
+  3. ページを作り直す（check15.html・growth.html・renzoku.html と、トップ index.html・common.html）。
      候補の配当履歴もここで取る。15指標の決算書は30日間使い回す
   4. GitHub に反映する（変化があったときだけ）
 
@@ -12,6 +12,8 @@
 
 2026-09-25 に②（高配当・優待）向けのページへ作り替えた。信用残（JPXの
 週末残高PDF）はスイング用の③にしか使っていなかったので取得をやめた。
+2026-10-18 に「配当株の買い場」を削除し、トップ（各ページへのリンク）と
+「3つに共通する銘柄」（common.html）を追加した。
 
 使い方:
     python scripts/update.py            通常（これを実行する）
@@ -61,7 +63,7 @@ def main() -> int:
     no_push = "--no-push" in sys.argv
     started = dt.datetime.now()
     print("=" * 56)
-    print(f"  配当株の買い場 更新  {started:%Y-%m-%d %H:%M:%S}")
+    print(f"  銘柄ピックアップ 更新  {started:%Y-%m-%d %H:%M:%S}")
     print("=" * 56)
     DATA.mkdir(exist_ok=True)
     py = [sys.executable, "-u"]
@@ -82,20 +84,25 @@ def main() -> int:
         return 1
 
     print("\n[3/3] ページを作り直します（候補の配当履歴もここで取ります）")
-    if run(py + [str(BASE / "build_site.py")]) != 0:
-        print("  [NG] ページを作れませんでした。")
-        return 1
     # 15指標チェック。決算書は30日間使い回すので、普段は配当履歴の取得だけで済む
-    if run(py + [str(BASE / "build_check15.py")]) != 0:
-        print("  [!] 15指標チェックのページは作れませんでした（配当株の買い場は更新済み）")
-    if run(py + [str(BASE / "build_growth.py")]) != 0:
-        print("  [!] グロース株のページは作れませんでした（ほかのページは更新済み）")
+    ok = 0
+    for script, name in (("build_check15.py", "高配当株 15指標チェック"), ("build_growth.py", "グロース株の候補")):
+        if run(py + [str(BASE / script)]) == 0:
+            ok += 1
+        else:
+            print(f"  [!] {name}のページは作れませんでした（ほかのページは続けて作ります）")
     # 連続増配株。EDINET のAPIキー（.edinet_key）が要る。報告書は保存して使い回す
     if (ROOT / ".edinet_key").exists():
         if run(py + [str(BASE / "build_renzoku.py")]) != 0:
             print("  [!] 連続増配株のページは作れませんでした（ほかのページは更新済み）")
     else:
         print("  [!] EDINET のAPIキーが無いので、連続増配株のページは作りません")
+    # トップと「3つに共通する銘柄」（上の3ページの結果を読むので最後に作る）
+    if run(py + [str(BASE / "build_top.py")]) != 0:
+        print("  [!] トップ・3つに共通する銘柄のページは作れませんでした")
+    if ok == 0:
+        print("  [NG] ページを作れませんでした。")
+        return 1
 
     if no_push:
         print("\n--no-push のため GitHub には反映しません。")

@@ -41,7 +41,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_site import load  # noqa: E402
+from common import load  # noqa: E402
 import fetch_edinet  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -272,7 +272,7 @@ svg.sp{vertical-align:middle}
 #toast{position:fixed;left:0;right:0;bottom:18px;margin:0 auto;width:max-content;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;text-align:center;z-index:10;box-shadow:0 4px 14px #0003}
 </style></head><body>
 <header><h1>連続増配株</h1><div class="meta" id="meta"></div>
-<div class="nav"><a href="./">配当株の買い場</a><a href="check15.html">高配当株 15指標チェック</a><a href="growth.html">グロース株の候補</a></div></header>
+<div class="nav"><a href="./">トップ</a><a href="check15.html">高配当株 15指標チェック</a><a href="growth.html">グロース株の候補</a><a href="common.html">3つに共通する銘柄</a></div></header>
 <section>
 <div class="desc"><b>第1段階（今の状態）</b>　PER12倍以下・PBR1.3倍以下・ROE7%以上・ROA3%以上・配当利回り3%以上・自己資本比率35%以上・時価総額100億円以上<br>
 <b>第2段階（過去10期）</b>　EPSが赤字の期なし・9期前の2倍以上／BPSが10期ともプラス／配当は減配1回まで・無配なし<br>

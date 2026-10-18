@@ -36,7 +36,7 @@ import fetch_edinet  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 NAV = [("./", "トップ"), ("check15.html", "高配当株 15指標チェック"), ("growth.html", "グロース株の候補"),
-       ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"), ("common.html", "3つに共通する銘柄")]
+       ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"), ("common.html", "共通する銘柄")]
 MIN_YIELD, MAX_PAYOUT = 2.5, 50
 
 

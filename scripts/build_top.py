@@ -2,9 +2,11 @@
 """トップページ（docs/index.html）と、共通する銘柄のページ（docs/common.html）を作る。
 
 2026-10-18 ご本人の依頼:
-  共通する銘柄は次の2つ（それまでの「3つに共通」は削除）
+  共通する銘柄は次の4つ（同日、グロース株×期待値投資の表から変更）
     ・4つのページすべてに載る銘柄（高配当株 15指標・グロース株・連続増配株・期待値投資）
-    ・グロース株 × 期待値投資
+    ・高配当株 × グロース株 × 連続増配株
+    ・高配当株 × グロース株 × 期待値投資
+    ・高配当株 × 連続増配株 × 期待値投資
 
 「載っている」の扱い:
   高配当株 15指標チェック … ページに載っている銘柄（配当利回り3%以上・時価総額300億円以上）
@@ -69,13 +71,19 @@ def build(docs: Path) -> dict:
                 "売上11期": x["売上"] if x else None, "営業利益10期": x["営業利益"] if x else None,
                 "業種": base.get("業種")}
 
-    four = sorted(set(C) & set(G) & set(R) & set(K))
-    gk = sorted(set(G) & set(K))
-    order = lambda rows: sorted(rows, key=lambda z: (z["目安"] != "買い", z["PER帯"]["pos"] if z["PER帯"] and z["PER帯"]["pos"] is not None else 999))
+    order = lambda rows: sorted(rows, key=lambda z: (z["目安"] != "買い", z["PER帯"]["pos"] if z["PER帯"] and z["PER帯"]["pos"] is not None else 999,
+                                                   -(z["加点"] or 0), -(z["15指標"][0] if z["15指標"] else 0)))
+    sets = {"高配当株": set(C), "グロース株": set(G), "連続増配株": set(R), "期待値投資": set(K)}
+    defs = [("4つのページすべてに載る銘柄", ["高配当株", "グロース株", "連続増配株", "期待値投資"]),
+            ("高配当株 × グロース株 × 連続増配株", ["高配当株", "グロース株", "連続増配株"]),
+            ("高配当株 × グロース株 × 期待値投資", ["高配当株", "グロース株", "期待値投資"]),
+            ("高配当株 × 連続増配株 × 期待値投資", ["高配当株", "連続増配株", "期待値投資"])]
+    sections = []
+    for title, names in defs:
+        hit = sorted(set.intersection(*(sets[x] for x in names)))
+        sections.append({"title": title, "pages": names, "rows": order([row(k) for k in hit])})
     payload = {"generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "asof": rz["asof"],
-               "counts": {"高配当株": len(C), "グロース株": len(G), "連続増配株": len(R), "期待値投資": len(K),
-                          "4つ": len(four), "グロース株 × 期待値投資": len(gk)},
-               "four": order([row(k) for k in four]), "gk": order([row(k) for k in gk])}
+               "counts": {k: len(v) for k, v in sets.items()}, "sections": sections}
     (docs / "common.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     (docs / "common.html").write_text(render_common(payload), encoding="utf-8")
     (docs / "index.html").write_text(render_top(payload), encoding="utf-8")
@@ -93,8 +101,8 @@ def render_top(p: dict) -> str:
          "今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びなどで加点。"),
         ("kitaichi.html", "期待値投資", f"{n['期待値投資']}銘柄",
          "配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPERの幅と、今のPERの位置（買い・売りの目安）。"),
-        ("common.html", "共通する銘柄", f"4つ {n['4つ']}・グロース×期待値 {n['グロース株 × 期待値投資']}",
-         "上の4つのページすべてに載る銘柄と、グロース株・期待値投資の両方に載る銘柄。"),
+        ("common.html", "共通する銘柄", "・".join(f"{len(x['rows'])}" for x in p["sections"]) + "銘柄",
+         "上の4つのページすべてに載る銘柄と、高配当株を含む3つの組み合わせ（×グロース×連続増配、×グロース×期待値、×連続増配×期待値）に載る銘柄。"),
     ]
     items = "".join(f'<a class="card" href="{h}"><div class="t">{t}<span>{c}</span></div><div class="d">{d}</div></a>'
                     for h, t, c, d in cards)
@@ -148,17 +156,14 @@ tr.detail td{white-space:normal;text-align:left;background:var(--hi);position:st
 <header><h1>共通する銘柄</h1><div class="meta" id="meta"></div>
 __NAV__</header>
 <section>
-<div class="desc">ほかのページに重ねて載っている銘柄です。期待値投資のPERの目安（過去10年の幅の真ん中より下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>）の順に並べています。グラフを押すと大きく表示。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー。</div>
+<div class="desc">ほかのページに重ねて載っている銘柄です。期待値投資を含む表は、PERの目安（過去10年の幅の真ん中より下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>）の順、含まない表は連続増配の加点・15指標の多い順に並べています。グラフを押すと大きく表示。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー。</div>
 <details><summary>各列の見方</summary><dl>
 <dt>目安・今のPER・PERの幅・グラフ</dt><dd>期待値投資のページと同じ（過去10年の毎月のPERの、下から1割〜上から1割の幅と中央値）。</dd>
 <dt>PEG</dt><dd>グロース株の候補のページの PER÷利益の伸び。1倍以下が割安の目安。</dd>
 <dt>15指標・加点</dt><dd>高配当株 15指標チェックの合格数、連続増配株のページの加点（最大8点）。</dd>
-<dt>売上・営業利益の伸び</dt><dd>グロース株の候補のページの年平均の伸び（4〜5期）。小さなグラフは期待値投資のページの売上11期・営業利益10期。</dd>
+<dt>売上・営業利益の伸び</dt><dd>グロース株の候補のページの年平均の伸び（4〜5期）。</dd>
 </dl></details>
-<h2>4つのページすべてに載る銘柄</h2>
-<div class="count" id="c4"></div><div id="t4"></div>
-<h2>グロース株 × 期待値投資</h2>
-<div class="count" id="cgk"></div><div id="tgk"></div>
+<div id="sections"></div>
 </section>
 <div id="toast" role="status"><span id="toastMsg"></span></div>
 <script>
@@ -166,12 +171,19 @@ const D = __DATA__;
 const QUOTE = code => `https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric=${code}.T`;
 const n = D.counts;
 document.getElementById("meta").textContent = `株価 ${D.asof.株価} 時点 ／ 作成 ${D.generated}`;
-document.getElementById("c4").textContent = `${n["4つ"]} 銘柄（高配当株 ${n.高配当株}・グロース株 ${n.グロース株}・連続増配株 ${n.連続増配株}・期待値投資 ${n.期待値投資} のすべてに載る）`;
-document.getElementById("cgk").textContent = `${n["グロース株 × 期待値投資"]} 銘柄（グロース株 ${n.グロース株}・期待値投資 ${n.期待値投資} の両方に載る）`;
-const TABLES = {
-  t4: {rows: D.four, cols: ["銘柄","目安","PER今","PER幅","グラフ","PEG","15指標","加点","株価","配当利回り","配当性向","売上成長","営業利益成長","業種"]},
-  tgk: {rows: D.gk, cols: ["銘柄","目安","PER今","PER幅","グラフ","PEG","株価","配当利回り","配当性向","売上成長","営業利益成長","売上11期","営業利益10期","業種"]},
-};
+const PAGE_COLS = {"期待値投資": ["目安","PER今","PER幅","グラフ"], "グロース株": ["PEG"], "高配当株": ["15指標"], "連続増配株": ["加点"]};
+const TABLES = {};
+document.getElementById("sections").innerHTML = D.sections.map((sec, i) => {
+  const id = "t" + i;
+  let cols = ["銘柄"];
+  for (const pg of ["期待値投資","グロース株","高配当株","連続増配株"]) if (sec.pages.includes(pg)) cols = cols.concat(PAGE_COLS[pg]);
+  cols = cols.concat(["株価","配当利回り","配当性向"]);
+  if (sec.pages.includes("グロース株")) cols = cols.concat(["売上成長","営業利益成長"]);
+  cols.push("業種");
+  TABLES[id] = {rows: sec.rows, cols};
+  const each = sec.pages.map(pg => `${pg} ${n[pg]}`).join("・");
+  return `<h2>${sec.title}</h2><div class="count">${sec.rows.length} 銘柄（${each} の${sec.pages.length === 4 ? "すべて" : "3つ"}に載る）</div><div id="${id}"></div>`;
+}).join("");
 const HEAD = {"PER今":"今のPER","PER幅":"PERの幅（中央）","グラフ":"PERの推移（10年）","配当利回り":"利回り%","配当性向":"配当性向%","売上成長":"売上の伸び%","営業利益成長":"営業利益の伸び%","売上11期":"売上（11期）","営業利益10期":"営業利益（10期）"};
 const val = v => Array.isArray(v) ? v[0] : v;
 const KEY = {"目安": r => r.PER帯 ? r.PER帯.pos : null, "PER今": r => r.PER帯 ? r.PER帯.now : null, "PER幅": r => r.PER帯 ? r.PER帯.mid : null,
@@ -223,7 +235,8 @@ function cell(k, r) {
   if (k === "業種") return `<td style="text-align:left">${v || "–"}</td>`;
   return `<td>${v ?? "–"}</td>`;
 }
-const state = {t4: {col: null, asc: true}, tgk: {col: null, asc: true}};
+const state = {};
+Object.keys(TABLES).forEach(id => state[id] = {col: null, asc: true});
 const open = new Set();
 function draw(id) {
   const T = TABLES[id], st = state[id];
@@ -272,7 +285,7 @@ async function copyCode(code) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.style.display = "none"; }, 3500);
 }
-draw("t4"); draw("tgk");
+Object.keys(TABLES).forEach(draw);
 </script></body></html>
 """.replace("__CSS__", CSS).replace("__NAV__", nav("common.html")).replace("__DATA__", json.dumps(p, ensure_ascii=False))
 
@@ -280,5 +293,4 @@ draw("t4"); draw("tgk");
 if __name__ == "__main__":
     docs = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "docs"
     p = build(docs)
-    c = p["counts"]
-    print(f"作成: {docs / 'index.html'}・{docs / 'common.html'}  4つ {c['4つ']}銘柄・グロース株×期待値投資 {c['グロース株 × 期待値投資']}銘柄")
+    print(f"作成: {docs / 'index.html'}・{docs / 'common.html'}  " + " / ".join(f"{x['title']} {len(x['rows'])}" for x in p["sections"]))

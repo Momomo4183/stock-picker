@@ -26,6 +26,7 @@ import glob
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
@@ -57,6 +58,26 @@ def git(*args, check: bool = False) -> str:
     if check and r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} が失敗: {r.stderr.strip()[:200]}")
     return (r.stdout or "").strip()
+
+
+def add_docs() -> None:
+    """docs を git に登録する。ファイルが多いと、ウイルス対策ソフトなどが書き込み中のファイルを
+    つかんで失敗することがある（2026-10-18、PER検索の3,600ファイルで発生）ので、
+    失敗したら少し待って、小分けにしてやり直す。"""
+    for _ in range(3):
+        if subprocess.run(["git", "add", "docs"], cwd=str(ROOT), capture_output=True).returncode == 0:
+            return
+        time.sleep(3)
+    files = git("ls-files", "-m", "-o", "--exclude-standard", "docs").splitlines()
+    for i in range(0, len(files), 200):
+        for _ in range(5):
+            if subprocess.run(["git", "add", "--", *files[i:i + 200]], cwd=str(ROOT),
+                              capture_output=True).returncode == 0:
+                break
+            time.sleep(2)
+        else:
+            raise RuntimeError("docs を git に登録できませんでした。少し待ってからもう一度更新してください")
+    git("add", "-u", "docs")          # 消えたファイルの分
 
 
 def main() -> int:
@@ -117,7 +138,7 @@ def main() -> int:
         return 0
 
     print("\nGitHub に反映します")
-    git("add", "docs")
+    add_docs()
     if not git("status", "--porcelain", "docs"):
         print("  変化がないので反映しません。")
         return 0

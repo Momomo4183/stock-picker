@@ -10,7 +10,7 @@ PER の作り方は期待値投資のページと同じ:
   EPS は有価証券報告書（EDINET）の10期分を、株式分割を今の基準に直したもの
   EPS が赤字の月は PER を空欄にする
 
-CSV の列: 年月, 株価, EPS, PER（過去10年分、古い順）
+CSV の列: 年月, 株価, EPS, PER（過去10年分、古い順。今月は月末前なので入れない）
 対象: 決算書のある全銘柄（初回は報告書の取得に時間がかかる。以降は新しい報告書だけ取る）
 
 使い方:
@@ -39,6 +39,9 @@ def series(close: pd.Series, a: dict) -> pd.DataFrame:
     known = eps.reindex(close.index.union(eps.index)).ffill().reindex(close.index)
     df = pd.DataFrame({"株価": close, "EPS": known}).dropna()
     df = df[df.index >= close.index[-1] - pd.DateOffset(years=10)]
+    # 今月はまだ月末になっていないので入れない（入れると更新のたびに全銘柄のファイルが変わる）。
+    # 今のPERは、検索欄が index.json の最新の株価から出す
+    df = df[df.index.to_period("M") < pd.Timestamp.today().to_period("M")]
     df["PER"] = (df["株価"] / df["EPS"]).where(df["EPS"] > 0)
     df.index = df.index.strftime("%Y-%m")
     df.index.name = "年月"

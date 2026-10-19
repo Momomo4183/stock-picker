@@ -71,25 +71,45 @@ def op_trend(o: dict):
 
 
 def monthly_prices(codes: list) -> dict:
+    """月末の株価（11年分）。取得制限で空になった銘柄は、少し待って取り直す。
+
+    2026-10-19 の更新で、1銘柄だけ取得制限で空の株価が返り、期待値投資のページ全体が止まった。
+    空の銘柄は結果に入れず、待ってから数銘柄ずつ取り直す（それでも取れなければその銘柄だけ飛ばす）。
+    """
+    import time
     import yfinance as yf
     out = {}
+
+    def fetch(tks, size):
+        for i in range(0, len(tks), size):
+            chunk = tks[i:i + size]
+            d = yf.download(chunk, period="11y", interval="1mo", auto_adjust=False, progress=False,
+                            group_by="ticker", threads=True)
+            for tk in chunk:
+                try:
+                    s = (d[tk] if len(chunk) > 1 else d)["Close"].dropna()
+                except KeyError:
+                    continue
+                if len(s):
+                    s.index = pd.DatetimeIndex(s.index).tz_localize(None)
+                    out[tk[:-2]] = s
+
     tks = [f"{c}.T" for c in codes]
-    for i in range(0, len(tks), 100):
-        chunk = tks[i:i + 100]
-        d = yf.download(chunk, period="11y", interval="1mo", auto_adjust=False, progress=False,
-                        group_by="ticker", threads=True)
-        for tk in chunk:
-            try:
-                s = (d[tk] if len(chunk) > 1 else d)["Close"].dropna()
-            except KeyError:
-                continue
-            s.index = pd.DatetimeIndex(s.index).tz_localize(None)
-            out[tk[:-2]] = s
+    fetch(tks, 100)
+    for wait in (30, 90):
+        miss = [t for t in tks if t[:-2] not in out]
+        if not miss:
+            break
+        print(f"  月末の株価が取れなかった {len(miss)}銘柄を、{wait}秒待って取り直します", flush=True)
+        time.sleep(wait)
+        fetch(miss, 20)
     return out
 
 
 def per_band(close: pd.Series, a: dict, price_now: float):
     """毎月の PER と、その幅（下から1割・中央値・上から1割）、今の PER。"""
+    if close is None or len(close) == 0:
+        return None
     eps = pd.Series(a["EPS"], index=[(pd.Timestamp(fy + "-01") + pd.offsets.MonthEnd(0) + pd.DateOffset(months=3))
                                      for fy in a["fy"]]).sort_index()
     known = eps.reindex(close.index.union(eps.index)).ffill().reindex(close.index)

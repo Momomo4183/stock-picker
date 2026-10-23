@@ -47,7 +47,7 @@ table.dt td{border-top:1px solid var(--line);padding:5px 7px;vertical-align:midd
 table.dt td:nth-child(2){white-space:nowrap}
 .ok{color:var(--good);font-weight:700}.ng{color:var(--warn);font-weight:700}
 </style></head><body>
-<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-21 時点 ／ 作成 2026-10-21 19:46</div></header>
+<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-23 時点 ／ 作成 2026-10-23 20:02</div></header>
 <section><div class="search"><div class="st">銘柄検索（PER・4つの条件）</div><div class="sd">銘柄コードか銘柄名を入れると、過去10年のPERの推移と幅、今のPERの位置（買い・売りの目安）と、高配当株 15指標・グロース株・連続増配株・期待値投資の4つの条件のすべての要素と点数を表示します。</div>
 <form id="f"><input id="q" list="codes" placeholder="銘柄コード（例 7203）か銘柄名" autocomplete="off" inputmode="search"><button class="go">検索</button></form>
 <datalist id="codes"></datalist>
@@ -57,7 +57,7 @@ table.dt td:nth-child(2){white-space:nowrap}
 <details class="perdesc"><summary>PERの見方</summary>PER＝月末の株価 ÷ その時点で発表済みの通期EPS（有価証券報告書、株式分割は調整済み。発表は期末の約3か月後として扱う）。
 幅は選んだ期間（過去1・3・5・10年、既定は10年）の毎月のPERの<b>下から1割〜上から1割</b>、真ん中は<b>中央値</b>。今のPERが中央値以下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>の目安（期待値投資のページと同じ。下の4つの条件の欄は過去10年で判定）。EPSが赤字の月は除いています。PERの幅は過去の話で、同じ幅に戻る保証はありません。</details>
 <div class="sd" id="perCount"></div></div>
-<a class="card" href="check15.html"><div class="t">高配当株 15指標チェック<span>695銘柄</span></div><div class="d">配当利回り3%以上・時価総額300億円以上の銘柄を、note「高配当株の15指標」の考え方で採点。</div></a><a class="card" href="growth.html"><div class="t">グロース株の候補<span>370銘柄</span></div><div class="d">売上・営業利益が年10%以上伸びている銘柄。PEG（PER÷利益の伸び）で割安さを見る。</div></a><a class="card" href="renzoku.html"><div class="t">連続増配株<span>74銘柄</span></div><div class="d">今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びなどで加点。</div></a><a class="card" href="kitaichi.html"><div class="t">期待値投資<span>43銘柄</span></div><div class="d">配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPERの幅と、今のPERの位置（買い・売りの目安）。</div></a><a class="card" href="common.html"><div class="t">共通する銘柄<span>0・6・4・2銘柄</span></div><div class="d">上の4つのページすべてに載る銘柄と、高配当株を含む3つの組み合わせ（×グロース×連続増配、×グロース×期待値、×連続増配×期待値）に載る銘柄。</div></a>
+<a class="card" href="check15.html"><div class="t">高配当株 15指標チェック<span>696銘柄</span></div><div class="d">配当利回り3%以上・時価総額300億円以上の銘柄を、note「高配当株の15指標」の考え方で採点。</div></a><a class="card" href="growth.html"><div class="t">グロース株の候補<span>368銘柄</span></div><div class="d">売上・営業利益が年10%以上伸びている銘柄。PEG（PER÷利益の伸び）で割安さを見る。</div></a><a class="card" href="renzoku.html"><div class="t">連続増配株<span>79銘柄</span></div><div class="d">今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びなどで加点。</div></a><a class="card" href="kitaichi.html"><div class="t">期待値投資<span>43銘柄</span></div><div class="d">配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPERの幅と、今のPERの位置（買い・売りの目安）。</div></a><a class="card" href="common.html"><div class="t">共通する銘柄<span>0・6・4・2銘柄</span></div><div class="d">上の4つのページすべてに載る銘柄と、高配当株を含む3つの組み合わせ（×グロース×連続増配、×グロース×期待値、×連続増配×期待値）に載る銘柄。</div></a>
 <div class="desc">更新はPCの「更新」から手動で行います。どのページも候補を並べるだけで、売買の判断はご自身で行ってください。</div>
 </section><script>let IDX = {stocks: {}};
 let YEARS = 10;

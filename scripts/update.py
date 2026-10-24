@@ -127,6 +127,9 @@ def main() -> int:
         # 検索結果に出す、4つの条件の全要素（全銘柄。決算書は30日ごとに取り直すので、その回は時間がかかる）
         if run(py + [str(BASE / "build_detail.py")], timeout=3 * 3600) != 0:
             print("  [!] 検索結果の4つの条件の要素は作れませんでした")
+        # 保有銘柄のスプレッドシートが読む、全銘柄の検索結果のまとめ（docs/summary.csv）
+        elif run(py + [str(BASE / "build_summary.py")]) != 0:
+            print("  [!] スプレッドシート用のまとめ（summary.csv）は作れませんでした")
     else:
         print("  [!] EDINET のAPIキーが無いので、連続増配株・期待値投資のページは作りません")
     # トップと「共通する銘柄」（上の4ページの結果を読むので最後に作る）

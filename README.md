@@ -110,7 +110,9 @@ scripts/build_growth.py       グロース株の候補
 scripts/fetch_edinet.py       EDINET から有価証券報告書を取る
 scripts/build_renzoku.py      連続増配株
 scripts/build_kitaichi.py     期待値投資
-scripts/build_per_data.py     スプレッドシート用の銘柄ごとのPER（docs/per/）
+scripts/build_per_data.py     銘柄ごとのPERの履歴（docs/per/）
+scripts/build_detail.py       銘柄検索の4つの条件の全要素（docs/detail/）
+scripts/build_summary.py      全銘柄のまとめ（docs/summary.csv。ご本人の保有銘柄シートが IMPORTDATA で読む）
 scripts/build_top.py          トップと共通する銘柄
 backtest/                     条件の検証（過去14年）。結果は backtest/結果/
 data/                         取得したデータ（リポジトリには含めない）

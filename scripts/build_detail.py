@@ -180,7 +180,10 @@ def kitaichi_part(r, rec) -> dict:
         ok, opv, cuts, ratio = kt.op_trend(op)
         out["営業利益"] = [r1(ratio, 2), ok, [r1(x / 1e8, 1) for x in opv], cuts]
     else:
-        out["営業利益"] = [None, None, [], None]          # 売上が10期伸びていない銘柄は取りに行かない
+        # 売上が10期伸びていない銘柄は取りに行かない。取りに行っても10期そろわない会社もある
+        # （例: KDDI は IFRS に移る前の営業利益が読めず8期分）→ 判定しない（ページにも載らない）
+        out["営業利益"] = [None, None, [], None]
+    out["営業利益期数"] = len(op)
     out["通過"] = bool(out["配当利回り"][1] and out["配当性向"][1] and out["売上"][1] and out["営業利益"][1])
     return out
 

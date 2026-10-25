@@ -47,7 +47,7 @@ table.dt td{border-top:1px solid var(--line);padding:5px 7px;vertical-align:midd
 table.dt td:nth-child(2){white-space:nowrap}
 .ok{color:var(--good);font-weight:700}.ng{color:var(--warn);font-weight:700}
 </style></head><body>
-<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-23 時点 ／ 作成 2026-10-23 20:02</div></header>
+<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-23 時点 ／ 作成 2026-10-25 21:12</div></header>
 <section><div class="search"><div class="st">銘柄検索（PER・4つの条件）</div><div class="sd">銘柄コードか銘柄名を入れると、過去10年のPERの推移と幅、今のPERの位置（買い・売りの目安）と、高配当株 15指標・グロース株・連続増配株・期待値投資の4つの条件のすべての要素と点数を表示します。</div>
 <form id="f"><input id="q" list="codes" placeholder="銘柄コード（例 7203）か銘柄名" autocomplete="off" inputmode="search"><button class="go">検索</button></form>
 <datalist id="codes"></datalist>
@@ -203,7 +203,7 @@ function detailHTML(d, b, sig, asof) {
       ["配当利回り", f(k.配当利回り[0], 2) + "%", "2.5%以上", OK(k.配当利回り[1])],
       ["配当性向", f(k.配当性向[0], 0) + "%", "50%以下", OK(k.配当性向[1])],
       ["売上高", sp(k.売上[2]) + `${k.売上[0]}期連続で増収`, "10期連続で増加", OK(k.売上[1])],
-      ["営業利益", op[1] === null ? `<span class="s">売上の条件を満たさないため未確認</span>` : sp(op[2]) + `9期前の${f(op[0], 2)}倍・減益${op[3]}回`, "10期で増加傾向", OK(op[1])],
+      ["営業利益", op[1] === null ? `<span class="s">${k.売上[1] ? `営業利益が${k.営業利益期数 ?? "–"}期分しか取れず未確認` : "売上の条件を満たさないため未確認"}</span>` : sp(op[2]) + `9期前の${f(op[0], 2)}倍・減益${op[3]}回`, "10期で増加傾向", OK(op[1])],
       ["PERの目安（過去10年）", sig ? `<span class="${sig === "買い" ? "buy" : "sell"}">${sig}</span>` : "–", "幅の中央値以下で買い", ""]]) + `</details>`;
   return h;
 }

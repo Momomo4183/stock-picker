@@ -78,7 +78,8 @@ def build() -> int:
             "PER上10年": b[10][2] if b[10] else None,
             "PER中央5年": b[5][1] if b[5] else None, "PER中央3年": b[3][1] if b[3] else None,
             "PER中央1年": b[1][1] if b[1] else None,
-            "15指標": f"{hd['合格'][0]}/{hd['合格'][1]}" if hd.get("合格") else None,
+            # 「9/10」だとスプレッドシートが日付（9月10日）と読むので、全角の／にする（2026-10-25）
+            "15指標": f"{hd['合格'][0]}／{hd['合格'][1]}" if hd.get("合格") else None,
             "15指標の対象": "対象" if hd.get("対象") else "対象外",
             "グロース株": "載る" if g.get("対象") and g.get("グロース") else "–",
             "PEG": (f"{peg[0]}（要確認）" if isinstance(peg, list) else peg),

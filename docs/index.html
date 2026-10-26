@@ -48,7 +48,7 @@ table.dt td{border-top:1px solid var(--line);padding:5px 7px;vertical-align:midd
 table.dt td:nth-child(2){white-space:nowrap}
 .ok{color:var(--good);font-weight:700}.ng{color:var(--warn);font-weight:700}
 </style></head><body>
-<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-26 時点 ／ 作成 2026-10-26 12:18</div></header>
+<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-26 時点 ／ 作成 2026-10-26 16:13</div></header>
 <section><div class="search"><div class="st">銘柄検索（PER・PER×PBR・スクリーニング）</div><div class="sd">銘柄コードか銘柄名を入れると、PERとPER×PBRの過去（1・3・5・10年）の推移と幅、今の位置（買い・売りの目安）と、連続増配株・期待値投資のすべての要素と点数を表示します。</div>
 <form id="f"><input id="q" list="codes" placeholder="銘柄コード（例 7203）か銘柄名" autocomplete="off" inputmode="search"><button class="go">検索</button></form>
 <datalist id="codes"></datalist>
@@ -58,7 +58,7 @@ table.dt td:nth-child(2){white-space:nowrap}
 <details class="perdesc"><summary>PERの見方</summary>PER＝月末の株価 ÷ その時点で発表済みの通期EPS（有価証券報告書、株式分割は調整済み。発表は期末の約3か月後として扱う）。
 PER×PBR＝PER×PBR（PBR＝月末の株価 ÷ 発表済みの通期BPS）。幅は選んだ期間（過去1・3・5・10年、既定は10年）の毎月の値の<b>下から1割〜上から1割</b>、真ん中は<b>中央値</b>。今のPERが中央値以下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>の目安（期待値投資のページと同じ。下の4つの条件の欄は過去10年で判定）。EPSが赤字の月は除いています。PERの幅は過去の話で、同じ幅に戻る保証はありません。</details>
 <div class="sd" id="perCount"></div></div>
-<a class="card" href="renzoku.html"><div class="t">連続増配株<span>77銘柄</span></div><div class="d">今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びなどで加点。PER×PBRを過去と比較。</div></a><a class="card" href="kitaichi.html"><div class="t">期待値投資<span>41銘柄</span></div><div class="d">配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPER・PER×PBRの幅と、今の位置（買い・売りの目安）。</div></a><a class="card" href="common.html"><div class="t">共通する銘柄<span>6銘柄</span></div><div class="d">連続増配株と期待値投資の両方に載る銘柄。</div></a>
+<a class="card" href="renzoku.html"><div class="t">連続増配株<span>74銘柄</span></div><div class="d">今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びなどで加点。PER×PBRを過去と比較。</div></a><a class="card" href="kitaichi.html"><div class="t">期待値投資<span>41銘柄</span></div><div class="d">配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPER・PER×PBRの幅と、今の位置（買い・売りの目安）。</div></a><a class="card" href="common.html"><div class="t">共通する銘柄<span>6銘柄</span></div><div class="d">連続増配株と期待値投資の両方に載る銘柄。</div></a>
 <div class="desc">更新はPCの「更新」から手動で行います。どのページも候補を並べるだけで、売買の判断はご自身で行ってください。</div>
 </section><script>let IDX = {stocks: {}};
 let YEARS = 10;

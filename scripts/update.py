@@ -5,7 +5,7 @@
   2. 株価を取り直す（全銘柄・約1分）
   3. ページを作り直す（renzoku.html・kitaichi.html と、トップ index.html・共通する銘柄 common.html）。
      トップの「銘柄検索」が読む docs/per/（PER・PER×PBRの履歴・銘柄一覧）と docs/detail/（スクリーニングの全要素）、
-     保有銘柄シートが読む docs/summary.csv もここで作る
+     保有銘柄シートが読む docs/summary.csv、日本株ETFシートが読む docs/etf/ もここで作る
   4. GitHub に反映する（変化があったときだけ）
 
 株価だけ取ればよいのは、PER・PBR・時価総額・配当利回りを
@@ -129,6 +129,9 @@ def main() -> int:
     # 保有銘柄のスプレッドシートが読む、全銘柄の検索結果のまとめ（docs/summary.csv）
     elif run(py + [str(BASE / "build_summary.py")]) != 0:
         print("  [!] スプレッドシート用のまとめ（summary.csv）は作れませんでした")
+    # 日本株ETFのスプレッドシートが読む、東証の全ETF・ETNの値動きと分配金（docs/etf/）
+    if run(py + [str(BASE / "build_etf.py")]) != 0:
+        print("  [!] ETFのデータ（スプレッドシート用）は作れませんでした")
     # トップと「共通する銘柄」（上の2ページの結果を読むので最後に作る）
     if run(py + [str(BASE / "build_top.py")]) != 0:
         print("  [!] トップ・共通する銘柄のページは作れませんでした")

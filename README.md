@@ -90,6 +90,7 @@ scripts/fetch_edinet.py       EDINET から有価証券報告書を取る
 scripts/build_renzoku.py      連続増配株
 scripts/build_kitaichi.py     期待値投資
 scripts/valuation.py          PER・PER×PBR を過去と比べる共通処理（月次の値・幅）
+scripts/build_etf.py          東証の全ETF・ETNの値動きと分配金（docs/etf/。日本株ETFのスプレッドシートが IMPORTDATA で読む）
 scripts/build_per_data.py     銘柄ごとのPERの履歴（docs/per/）
 scripts/build_detail.py       銘柄検索の4つの条件の全要素（docs/detail/）
 scripts/build_summary.py      全銘柄のまとめ（docs/summary.csv。ご本人の保有銘柄シートが IMPORTDATA で読む）

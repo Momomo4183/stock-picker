@@ -33,6 +33,7 @@ button.go{font:inherit;font-weight:700;padding:9px 16px;border:0;border-radius:8
 .search{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px}
 .st{font-weight:700;font-size:15.5px;color:var(--accent)}.sd{font-size:12.5px;color:var(--sub);margin:2px 0 8px}
 .search .card{background:var(--bg)}
+.boxlab{font-size:12px;font-weight:700;color:var(--accent);margin:10px 0 -4px}
 .perdesc{font-size:12px;color:var(--sub);margin-top:6px}.perdesc summary{cursor:pointer;color:var(--ink)}
 .years{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.years button{font:inherit;font-size:12.5px;padding:3px 10px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);cursor:pointer}.years button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
 .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
@@ -47,17 +48,17 @@ table.dt td{border-top:1px solid var(--line);padding:5px 7px;vertical-align:midd
 table.dt td:nth-child(2){white-space:nowrap}
 .ok{color:var(--good);font-weight:700}.ng{color:var(--warn);font-weight:700}
 </style></head><body>
-<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-23 時点 ／ 作成 2026-10-25 21:12</div></header>
-<section><div class="search"><div class="st">銘柄検索（PER・4つの条件）</div><div class="sd">銘柄コードか銘柄名を入れると、過去10年のPERの推移と幅、今のPERの位置（買い・売りの目安）と、高配当株 15指標・グロース株・連続増配株・期待値投資の4つの条件のすべての要素と点数を表示します。</div>
+<header><h1>銘柄ピックアップ</h1><div class="meta">株価 2026-10-23 時点 ／ 作成 2026-10-26 09:43</div></header>
+<section><div class="search"><div class="st">銘柄検索（PER・PER×PBR・スクリーニング）</div><div class="sd">銘柄コードか銘柄名を入れると、PERとPER×PBRの過去（1・3・5・10年）の推移と幅、今の位置（買い・売りの目安）と、連続増配株・期待値投資のすべての要素と点数を表示します。</div>
 <form id="f"><input id="q" list="codes" placeholder="銘柄コード（例 7203）か銘柄名" autocomplete="off" inputmode="search"><button class="go">検索</button></form>
 <datalist id="codes"></datalist>
 <div class="recent" id="recent"></div>
 <div class="msg" id="msg"></div>
 <div id="out"></div>
 <details class="perdesc"><summary>PERの見方</summary>PER＝月末の株価 ÷ その時点で発表済みの通期EPS（有価証券報告書、株式分割は調整済み。発表は期末の約3か月後として扱う）。
-幅は選んだ期間（過去1・3・5・10年、既定は10年）の毎月のPERの<b>下から1割〜上から1割</b>、真ん中は<b>中央値</b>。今のPERが中央値以下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>の目安（期待値投資のページと同じ。下の4つの条件の欄は過去10年で判定）。EPSが赤字の月は除いています。PERの幅は過去の話で、同じ幅に戻る保証はありません。</details>
+PER×PBR＝PER×PBR（PBR＝月末の株価 ÷ 発表済みの通期BPS）。幅は選んだ期間（過去1・3・5・10年、既定は10年）の毎月の値の<b>下から1割〜上から1割</b>、真ん中は<b>中央値</b>。今のPERが中央値以下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>の目安（期待値投資のページと同じ。下の4つの条件の欄は過去10年で判定）。EPSが赤字の月は除いています。PERの幅は過去の話で、同じ幅に戻る保証はありません。</details>
 <div class="sd" id="perCount"></div></div>
-<a class="card" href="check15.html"><div class="t">高配当株 15指標チェック<span>696銘柄</span></div><div class="d">配当利回り3%以上・時価総額300億円以上の銘柄を、note「高配当株の15指標」の考え方で採点。</div></a><a class="card" href="growth.html"><div class="t">グロース株の候補<span>368銘柄</span></div><div class="d">売上・営業利益が年10%以上伸びている銘柄。PEG（PER÷利益の伸び）で割安さを見る。</div></a><a class="card" href="renzoku.html"><div class="t">連続増配株<span>79銘柄</span></div><div class="d">今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びなどで加点。</div></a><a class="card" href="kitaichi.html"><div class="t">期待値投資<span>43銘柄</span></div><div class="d">配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPERの幅と、今のPERの位置（買い・売りの目安）。</div></a><a class="card" href="common.html"><div class="t">共通する銘柄<span>0・6・4・2銘柄</span></div><div class="d">上の4つのページすべてに載る銘柄と、高配当株を含む3つの組み合わせ（×グロース×連続増配、×グロース×期待値、×連続増配×期待値）に載る銘柄。</div></a>
+<a class="card" href="renzoku.html"><div class="t">連続増配株<span>70銘柄</span></div><div class="d">今の割安さ・収益性（第1段階）と、過去10期のEPS・BPS・配当（第2段階）を満たす銘柄。累進配当・DOE・BPSの伸びなどで加点。PER×PBRを過去と比較。</div></a><a class="card" href="kitaichi.html"><div class="t">期待値投資<span>37銘柄</span></div><div class="d">配当利回り2.5%以上・配当性向50%以下で、売上が10期連続で増え、営業利益も伸びている銘柄。過去10年のPER・PER×PBRの幅と、今の位置（買い・売りの目安）。</div></a><a class="card" href="common.html"><div class="t">共通する銘柄<span>4銘柄</span></div><div class="d">連続増配株と期待値投資の両方に載る銘柄。</div></a>
 <div class="desc">更新はPCの「更新」から手動で行います。どのページも候補を並べるだけで、売買の判断はご自身で行ってください。</div>
 </section><script>let IDX = {stocks: {}};
 let YEARS = 10;
@@ -106,43 +107,54 @@ async function show(code) {
   let rows;
   try {
     const t = await (await fetch(`per/${code}.csv`, {cache: "no-cache"})).text();
-    rows = t.trim().split("\n").slice(1).map(l => { const [ym, p, e, per] = l.split(","); return [ym, +p, +e, per === "" ? null : +per]; });
+    // 列: 年月, 株価, EPS, PER, BPS, PBR, PER×PBR（BPS 以降は 2026-10-26 追加）
+    const num = v => v === undefined || v === "" ? null : +v;
+    rows = t.trim().split("\n").slice(1).map(l => { const c = l.split(","); return [c[0], +c[1], +c[2], num(c[3]), num(c[4]), num(c[5]), num(c[6])]; });
   } catch (e) { msg.textContent = "データを読めませんでした。少し待ってからもう一度お試しください。"; return; }
-  const eps = rows[rows.length - 1][2], price = info[1];
+  const last = rows[rows.length - 1], eps = last[2], bps = last[4], price = info[1];
   const now = eps > 0 ? price / eps : null;
-  const band = n => {               // 直近 n 年の毎月のPERから、幅・中央値・今の位置
-    const r = rows.slice(-n * 12), pers = r.map(x => x[3]).filter(x => x !== null);
-    const b = pers.length >= Math.min(12, n * 6) ? {lo: q(pers, 0.1), mid: q(pers, 0.5), hi: q(pers, 0.9), now} : null;
-    const pos = b && now !== null && b.hi > b.lo ? Math.round((now - b.lo) / (b.hi - b.lo) * 100) : null;
-    return {r, b, pos, sig: b && now !== null ? (now <= b.mid ? "買い" : "売り") : null};
+  const pbrNow = bps > 0 ? price / bps : null;
+  const ppNow = now !== null && pbrNow !== null ? now * pbrNow : null;
+  // 直近 n 年の毎月の値（col: 3＝PER、6＝PER×PBR）から、幅・中央値・今の位置
+  const bandOf = (n, col, cur) => {
+    const r = rows.slice(-n * 12), vals = r.map(x => x[col]).filter(x => x !== null);
+    const b = vals.length >= Math.min(12, n * 6) ? {lo: q(vals, 0.1), mid: q(vals, 0.5), hi: q(vals, 0.9), now: cur} : null;
+    const pos = b && cur !== null && b.hi > b.lo ? Math.round((cur - b.lo) / (b.hi - b.lo) * 100) : null;
+    return {r, b, pos, sig: b && cur !== null ? (cur <= b.mid ? "買い" : "売り") : null};
   };
-  const ten = band(10);              // 4つの条件の欄（期待値投資）は過去10年で判定する
+  const ten = bandOf(10, 3, now);    // 期待値投資の欄は過去10年で判定する
+  const tenPP = bandOf(10, 6, ppNow);
   out.innerHTML = `<div class="card"><div class="name"><a href="${QUOTE(code)}" target="_blank" rel="noopener">${code} ${info[0]}</a></div>
    <div class="years" id="years">${[1, 3, 5, 10].map(n => `<button data-y="${n}" class="${n === YEARS ? "on" : ""}">過去${n}年</button>`).join("")}</div>
-   <div id="perbox"></div></div><div id="perchart"></div>`;
+   <div class="boxlab">PER</div><div id="perbox"></div><div class="boxlab">PER×PBR</div><div id="ppbox"></div></div><div id="perchart"></div><div id="ppchart"></div>`;
+  const box = (lab, n, x, cur, extra) => `<div class="grid">
+     <div><div class="k">目安（過去${n}年）</div><div class="v ${x.sig === "買い" ? "buy" : "sell"}">${x.sig || "–"} <small class="s">${x.pos === null ? "" : x.pos + "%"}</small></div></div>
+     <div><div class="k">今の${lab}</div><div class="v">${cur === null ? "–" : f(cur, 1)}</div></div>
+     <div><div class="k">${lab}の幅（下〜上）</div><div class="v">${x.b ? f(x.b.lo, 1) + "〜" + f(x.b.hi, 1) : "–"}</div></div>
+     <div><div class="k">真ん中（中央値）</div><div class="v">${x.b ? f(x.b.mid, 1) : "–"}</div></div>${extra}</div>`;
+  const chart = (lab, x, col) => x.b
+    ? `<div class="card"><div class="legend">${lab}の推移（月末、${x.r[0][0]}〜${x.r[x.r.length - 1][0]}）。帯＝幅（下から1割〜上から1割）、点線＝中央値、点＝今。位置は 0%＝幅の下、100%＝上（0未満・100超は幅の外）</div>${perChart(x.r.map(y => [y[0], y[col]]), x.b, 680, 230)}</div>`
+    : `<div class="card s">この期間は${lab}を出せる月が少ないため、幅は出していません（赤字の期が多い・データが短いなど）。</div>`;
   const draw = n => {
     YEARS = n;
     document.querySelectorAll("#years button").forEach(x => x.classList.toggle("on", +x.dataset.y === n));
-    const {r, b, pos, sig} = band(n);
-    document.getElementById("perbox").innerHTML = `<div class="grid">
-     <div><div class="k">目安（過去${n}年）</div><div class="v ${sig === "買い" ? "buy" : "sell"}">${sig || "–"} <small class="s">${pos === null ? "" : pos + "%"}</small></div></div>
-     <div><div class="k">今のPER</div><div class="v">${now === null ? "赤字" : f(now, 1)}</div></div>
-     <div><div class="k">PERの幅（下〜上）</div><div class="v">${b ? f(b.lo, 1) + "〜" + f(b.hi, 1) : "–"}</div></div>
-     <div><div class="k">真ん中（中央値）</div><div class="v">${b ? f(b.mid, 1) : "–"}</div></div>
-     <div><div class="k">株価（${IDX.asof}）</div><div class="v">${f(price, 1)}</div></div>
-     <div><div class="k">直近の通期EPS</div><div class="v">${f(eps, 1)}</div></div></div>`;
-    document.getElementById("perchart").innerHTML = b
-      ? `<div class="card"><div class="legend">PERの推移（月末、${r[0][0]}〜${r[r.length - 1][0]}）。帯＝幅（下から1割〜上から1割）、点線＝中央値、点＝今。位置は 0%＝幅の下、100%＝上（0未満・100超は幅の外）</div>${perChart(r.map(x => [x[0], x[3]]), b, 680, 230)}</div>`
-      : `<div class="card s">この期間はPERを出せる月が少ないため、幅は出していません（赤字の期が多い・データが短いなど）。</div>`;
+    const pe = bandOf(n, 3, now), pp = bandOf(n, 6, ppNow);
+    document.getElementById("perbox").innerHTML = box("PER", n, pe, now === null ? null : now,
+      `<div><div class="k">株価（${IDX.asof}）</div><div class="v">${f(price, 1)}</div></div><div><div class="k">直近の通期EPS</div><div class="v">${f(eps, 1)}</div></div>`)
+      .replace(`<div class="v">–</div></div>`, now === null ? `<div class="v">赤字</div></div>` : `<div class="v">–</div></div>`);
+    document.getElementById("ppbox").innerHTML = box("PER×PBR", n, pp, ppNow,
+      `<div><div class="k">今のPBR</div><div class="v">${pbrNow === null ? "–" : f(pbrNow, 2)}</div></div><div><div class="k">直近の通期BPS</div><div class="v">${f(bps, 1)}</div></div>`);
+    document.getElementById("perchart").innerHTML = chart("PER", pe, 3);
+    document.getElementById("ppchart").innerHTML = chart("PER×PBR", pp, 6);
   };
   draw(rows.length >= YEARS * 12 || YEARS === 10 ? YEARS : 10);
   document.querySelectorAll("#years button").forEach(x => x.onclick = () => draw(+x.dataset.y));
   const b = ten.b, sig = ten.sig;
-  // 4つの条件の全要素（build_detail.py が docs/detail/コード先頭2文字.json に作る）
+  // スクリーニングの全要素（build_detail.py が docs/detail/コード先頭2文字.json に作る）
   try {
     const dj = await (await fetch(`detail/${code.slice(0, 2)}.json`, {cache: "no-cache"})).json();
-    if (dj.stocks[code]) out.insertAdjacentHTML("beforeend", detailHTML(dj.stocks[code], b, sig, dj.asof));
-  } catch (e) { out.insertAdjacentHTML("beforeend", `<div class="card s">4つの条件の要素を読めませんでした。</div>`); }
+    if (dj.stocks[code]) out.insertAdjacentHTML("beforeend", detailHTML(dj.stocks[code], b, sig, dj.asof, tenPP));
+  } catch (e) { out.insertAdjacentHTML("beforeend", `<div class="card s">スクリーニングの要素を読めませんでした。</div>`); }
   let rec = (store("per_recent") || []).filter(c => c !== code); rec.unshift(code); store("per_recent", rec.slice(0, 8)); drawRecent();
   history.replaceState(null, "", "#" + code);
 }
@@ -152,42 +164,14 @@ const sp = v => { const xs = (v || []).filter(x => x !== null); if (xs.length < 
   const pts = v.map((x, i) => x === null ? null : [i * w / (v.length - 1), h - 1 - (hi > lo ? (x - lo) / (hi - lo) * (h - 2) : (h - 2) / 2)]).filter(Boolean);
   return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline fill="none" stroke="currentColor" stroke-width="1.3" points="${pts.map(p => p.join(",")).join(" ")}"/></svg> `; };
 const tbl = (head, rows) => `<div class="tw"><table class="dt"><thead><tr>${head.map(x => `<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(x => `<td>${x ?? "–"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-const C15 = [["売上","4〜5期の伸び。右肩上がり（減収1回まで）で合格","%"],["利益","純利益が最も古い期より増えて黒字なら合格","%"],["営業利益率","5%以上で合格・10%以上は優秀","%"],
-  ["ROE","基準なし（値だけ）","%"],["ROA","基準なし（値だけ）","%"],["営業CF","全期プラスで合格",""],["現金","配当の何年分か（値だけ）","年"],["自己資本比率","40%以上で合格（金融は対象外）","%"],
-  ["PER","15倍以下で合格","倍"],["PBR","1倍以下で合格","倍"],["配当","5年の年間配当の伸び。増えていれば合格・減配なしは優秀","%"],["配当性向","70%以下で合格・30〜60%は健全","%"],
-  ["DOE","基準なし（値だけ）","%"],["急上昇","今の利回り÷1年前。1.5倍未満で合格","倍"]];
-const ST = s => s === "g" ? `<span class="ok">◎</span>` : s === "p" ? `<span class="ok">○</span>` : s === "w" ? `<span class="ng">×</span>` : s === "n" ? `<span class="s">対象外</span>` : `<span class="s">値だけ</span>`;
-function detailHTML(d, b, sig, asof) {
-  const hd = d.高配当, g = d.グロース, r = d.連続増配, k = d.期待値;
+function detailHTML(d, b, sig, asof, pp) {
+  const r = d.連続増配, k = d.期待値;
   const onRz = r.第1段階通過 && r.第2段階通過;
   const chip = (name, on, txt) => `<div class="chip ${on ? "on" : ""}"><div class="k">${name}</div><div>${on ? "載っている" : "載っていない"}</div><div class="s">${txt}</div></div>`;
-  let h = `<div class="card"><div class="legend">4つの条件での結果（ページに載るかどうか）。株価・財務は ${asof} 時点</div><div class="chips">
-    ${chip("高配当株 15指標", hd.対象, `合格 ${hd.合格[0]}/${hd.合格[1]}${hd.対象 ? "" : "（対象外：利回り3%・時価総額300億）"}`)}
-    ${chip("グロース株", g.対象 && g.グロース, g.グロース === undefined ? g.判定 || "" : `PEG ${Array.isArray(g.PEG) ? f(g.PEG[0], 2) + "（要確認）" : f(g.PEG, 2)}`)}
+  let h = `<div class="card"><div class="legend">スクリーニングの結果（ページに載るかどうか）。株価・財務は ${asof} 時点</div><div class="chips">
     ${chip("連続増配株", onRz, `加点 ${r.合計}/8・第1段階${r.第1段階通過 ? "○" : "×"}・第2段階${r.第2段階通過 ? "○" : "×"}`)}
-    ${chip("期待値投資", k.通過, sig ? `PERの目安（過去10年） ${sig}` : "")}
+    ${chip("期待値投資", k.通過, (sig ? `PERの目安（10年） ${sig}` : "") + (pp && pp.sig ? `・PER×PBR ${pp.sig}` : ""))}
   </div></div>`;
-  // 高配当株 15指標
-  h += `<details class="card dsec" open><summary>高配当株 15指標チェック　<b>合格 ${hd.合格[0]}/${hd.合格[1]}</b> <span class="s">${hd.対象 ? "" : "（このページの対象外：配当利回り3%以上・時価総額300億円以上）"}</span></summary>` +
-    tbl(["指標", "値", "基準", "判定"], C15.map(([key, rule, unit]) => { const v = hd.指標[key];
-      if (!v) return [key, "–", rule, `<span class="s">データなし</span>`];
-      let t = typeof v[0] === "number" ? f(v[0], unit === "倍" && key === "PBR" ? 2 : 1) + unit : v[0];
-      if (key === "配当" && v[2]) t += `（減配${v[2]}）`;
-      return [key, t, rule, ST(v[1])]; })) + `</details>`;
-  // グロース株
-  const gr = g.グロース === undefined ? `<div class="s">${g.判定 || "データなし"}</div>` :
-    tbl(["条件・指標", "値", "基準", "判定"], [
-      ["時価総額", f(g.時価総額億, 0) + "億円", "100億円以上（対象）", OK(g.時価総額億 >= 100)],
-      ["売買代金（20日平均）", f(g.売買代金万, 0) + "万円", "5,000万円以上（対象）", OK(g.売買代金万 >= 5000)],
-      ["売上の伸び（年平均）", f(g.売上成長[0], 1) + "%", "10%以上", OK(g.売上成長[1])],
-      ["営業利益の伸び（年平均）", f(g.営業利益成長[0], 1) + "%", "10%以上", OK(g.営業利益成長[1])],
-      ["直近期の売上", f(g.直近売上[0], 1) + "%", "増収", OK(g.直近売上[1])],
-      ["PEG", Array.isArray(g.PEG) ? f(g.PEG[0], 2) + "（PER5倍未満・要確認）" : f(g.PEG, 2), "1倍以下が割安の目安", g.PEG === null || Array.isArray(g.PEG) ? OK(null) : OK(g.PEG <= 1)],
-      ["利益の伸び（年平均）", f(g.利益成長, 1) + "%", "PEGの計算に使う", ""], ["増収の回数", g.増収, "", ""],
-      ["営業利益率", f(g.営業利益率, 1) + "%", "", ""], ["利益率の改善", f(g.利益率の改善, 1) + "pt", "", ""],
-      ["ROE", f(g.ROE, 1) + "%", "", ""], ["営業CF", g.営業CF, "", ""], ["PER", f(g.PER, 1), "", ""], ["PSR", f(g.PSR, 2), "", ""],
-      ["PBR", f(g.PBR, 2), "", ""], ["6か月の騰落", f(g["6か月騰落"], 1) + "%", "", ""], ["値動きの荒さ", f(g.荒さ, 0), "0＝穏やか〜100＝荒い", ""]]);
-  h += `<details class="card dsec" open><summary>グロース株の候補　<b>${g.対象 && g.グロース ? "載っている" : "載っていない"}</b></summary>${gr}</details>`;
   // 連続増配株
   h += `<details class="card dsec" open><summary>連続増配株　<b>${onRz ? "載っている" : "載っていない"}・加点 ${r.合計}/8</b></summary>` +
     `<div class="sub">第1段階（今の状態）</div>` + tbl(["条件", "値", "基準", "判定"], r.第1段階.map(c => [c[0], f(c[1], c[0] === "PBR" || c[0] === "配当利回り" ? 2 : c[0] === "時価総額" ? 0 : 1), c[2], OK(c[3])])) +

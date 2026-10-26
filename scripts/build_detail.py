@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
-"""PER検索の結果に出す、銘柄ごとの「4つのスクリーニングの全要素」（docs/detail/コード先頭2文字.json）を作る。
+"""銘柄検索の結果に出す、銘柄ごとの「スクリーニングの全要素」（docs/detail/コード先頭2文字.json）を作る。
 
-2026-10-18 ご本人の依頼: 検索結果に、これまでの4条件（高配当株 15指標・グロース株・連続増配株・
-期待値投資）で使っている要素を、点数も含めてすべて出したい。スクリーニングで絞った銘柄を、
-最後に買うかどうか決めるとき、また売りの判断の目安として、検索して全要素で確かめるため。
+2026-10-18 ご本人の依頼: 検索結果に、スクリーニング（当時は4つ）で使っている要素を、点数も含めてすべて出したい。
+スクリーニングで絞った銘柄を、最後に買うかどうか決めるとき、また売りの判断の目安として、検索して確かめるため。
+2026-10-26 高配当株 15指標・グロース株のページを削除したので、連続増配株・期待値投資の2つにした。
 
 各ページと同じ判定を、ページの対象に入っていない銘柄も含めて全銘柄で出す:
-  高配当株 15指標  build_check15.judge をそのまま使う。配当の伸び・減配・利回りの前年比は、
-                   ページは日足7年、ここは配当履歴（actions）と月末の株価で出すので、少しずれることがある
-  グロース株       build_growth と同じ計算（成長率は yfinance の決算書4〜5期）
   連続増配株       build_renzoku の stage2・adjust と同じ。第1段階の各条件も個別に出す
   期待値投資       売上は有価証券報告書。10期ずっと増収している銘柄だけ、営業利益10期と11期目の売上を取りに行く
 ページの判定と同じ数字にするため、しきい値は各ページのモジュールから読む。
+PER・PER×PBR の幅は、検索欄が docs/per/コード.csv から出す（ここには入れない）。
 
 ファイルは銘柄コードの先頭2文字ごとにまとめる（3,600銘柄を1ファイルずつにすると更新のたびに git が重い）。
 
@@ -29,8 +27,6 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import load  # noqa: E402
-import build_check15 as c15  # noqa: E402
-import build_growth as gr  # noqa: E402
 import build_renzoku as rz  # noqa: E402
 import build_kitaichi as kt  # noqa: E402
 import fetch_edinet  # noqa: E402
@@ -52,74 +48,6 @@ def num(v):
 def r1(v, d=1):
     v = num(v)
     return None if v is None else round(v, d)
-
-
-def dividend_facts(dv: dict, price_now, per_csv: Path) -> dict:
-    """15指標の「配当」「急上昇」の材料（配当の伸び・減配・利回りの前年比）。"""
-    out = {}
-    if not dv:
-        return out
-    s = pd.Series(dv)
-    s.index = pd.to_datetime(s.index)
-    today = pd.Timestamp.today().normalize()
-    yearly = s.groupby(s.index.year).sum()
-    first = s.index.min().year
-    yearly = yearly[(yearly.index > first) & (yearly.index < today.year)].tail(6)
-    if len(yearly) >= 3:
-        v = yearly.values
-        out["減配"] = int(sum(v[i] < v[i - 1] * 0.97 for i in range(1, len(v))))
-        if v[0] > 0:
-            out["配当の伸び"] = float(v[-1] / v[0])
-    ttm_now = s[s.index > today - pd.Timedelta(days=365)].sum()
-    ttm_ago = s[(s.index > today - pd.Timedelta(days=730)) & (s.index <= today - pd.Timedelta(days=365))].sum()
-    if per_csv.exists() and price_now and ttm_now > 0 and ttm_ago > 0:
-        m = pd.read_csv(per_csv)
-        m = m[m["年月"] <= (today - pd.DateOffset(years=1)).strftime("%Y-%m")]
-        if len(m):
-            p_ago = float(m["株価"].iloc[-1])
-            out["利回り前年比"] = float((ttm_now / price_now) / (ttm_ago / p_ago))
-    return out
-
-
-def growth_part(r, g) -> dict:
-    """グロース株の候補のページと同じ計算。"""
-    out = {"対象": bool(num(r["時価総額億"]) is not None and r["時価総額億"] >= gr.MIN_CAP
-                        and num(r.get("売買代金")) is not None and r["売買代金"] >= gr.MIN_DAI),
-           "時価総額億": r1(r["時価総額億"], 0), "売買代金万": r1((num(r.get("売買代金")) or 0) / 1e4, 0)}
-    if g is None or len(g["売上"].dropna()) < 3:
-        out["判定"] = "決算書のデータ不足"
-        return out
-    rev, op, ni = g["売上"].dropna(), g["営業利益"].dropna(), g["純利益"].dropna()
-    g_rev, g_op, g_ni = gr.cagr(rev), gr.cagr(op), gr.cagr(ni)
-    last_rev = float(rev.iloc[-1] / rev.iloc[-2] - 1) if rev.iloc[-2] > 0 else None
-    per = num(r["PER"])
-    g_peg = min(g_ni, g_op, gr.PEG_GROWTH_CAP) if g_ni and g_ni > 0 and g_op else None
-    peg = per / (g_peg * 100) if per and g_peg else None
-    margin_now = op.iloc[-1] / rev.iloc[-1] if len(op) and rev.iloc[-1] else None
-    margin_old = op.iloc[0] / rev.iloc[0] if len(op) and rev.iloc[0] else None
-    eq = num(g["純資産"].dropna().iloc[-1]) if g["純資産"].notna().any() else None
-    net = num(ni.iloc[-1]) if len(ni) else None
-    cf = g["営業CF"].dropna()
-    ok_rev = g_rev is not None and g_rev >= gr.MIN_GROWTH
-    ok_op = g_op is not None and g_op >= gr.MIN_GROWTH
-    ok_last = last_rev is not None and last_rev > 0
-    out.update({
-        "売上成長": [r1(g_rev * 100) if g_rev is not None else None, ok_rev],
-        "営業利益成長": [r1(g_op * 100) if g_op is not None else None, ok_op],
-        "直近売上": [r1(last_rev * 100) if last_rev is not None else None, ok_last],
-        "グロース": bool(ok_rev and ok_op and ok_last),
-        "PEG": ([r1(peg, 2), "要確認"] if peg is not None and per < gr.MIN_PER_FOR_PEG else r1(peg, 2)),
-        "利益成長": r1(g_ni * 100) if g_ni is not None else None,
-        "増収": f"{int((rev.diff().dropna() > 0).sum())}/{len(rev) - 1}",
-        "営業利益率": r1(margin_now * 100) if margin_now is not None else None,
-        "利益率の改善": r1((margin_now - margin_old) * 100) if margin_now is not None and margin_old is not None else None,
-        "ROE": r1(net / eq * 100) if net is not None and eq and eq > 0 else None,
-        "営業CF": None if len(cf) < 2 else "全期プラス" if (cf > 0).all() else f"マイナス{int((cf <= 0).sum())}期",
-        "PER": r1(per), "PSR": r1(r["時価総額億"] * 1e8 / rev.iloc[-1], 2) if rev.iloc[-1] > 0 else None,
-        "PBR": r1(r["PBR"], 2), "6か月騰落": r1((num(r.get("6か月騰落")) or 0) * 100) if num(r.get("6か月騰落")) is not None else None,
-        "荒さ": r1(r.get("荒さ"), 0),
-    })
-    return out
 
 
 def renzoku_part(r, lat, rec, act, cover) -> dict:
@@ -190,7 +118,6 @@ def kitaichi_part(r, rec) -> dict:
 
 def build() -> int:
     df, asof = load()
-    df = df.merge(gr.market_extras(), on="code", how="left")
     have = {p.stem for p in (DOCS / "per").glob("*.csv")}
     ends = kt.fy_ends()
     codes = [c for c in df["code"] if c in ends.index]
@@ -213,36 +140,15 @@ def build() -> int:
     for c, r in raw2.items():
         raw[c] = r
     act = rz.actions_for(codes, max_age=30)
-    empty = pd.DataFrame(columns=["決算期"] + [f[0] for f in fetch_statements.FIELDS])
-    # 15指標のページに載っている銘柄は、ページと同じ配当の材料（日足7年から出したもの）を使う
-    page15 = {}
-    f15 = DOCS / "check15.json"
-    if f15.exists():
-        for x in json.loads(f15.read_text(encoding="utf-8"))["rows"]:
-            dv = {}
-            if x.get("配当"):
-                dv["配当の伸び"], dv["減配"] = 1 + x["配当"][0] / 100, x["配当"][2]
-            if x.get("急上昇"):
-                dv["利回り前年比"] = x["急上昇"][0]
-            page15[x["銘柄"].split(" ")[0]] = dv
     shards = {}
     for _, r in df[df["code"].isin(codes)].iterrows():
         c = r["code"]
         try:
             g = by_code.get(c)
-            dv = page15[c] if c in page15 else \
-                dividend_facts(act.get(c, {}).get("dividends", {}), num(r["株価"]), DOCS / "per" / f"{c}.csv")
-            j = c15.judge(r, g if g is not None else empty, dv)
-            scored = [j[k][1] for k in c15.SCORED if k in j and j[k][1] != "n"]
             lat = g.iloc[-1] if g is not None and len(g) else None
             rec = {
                 "名前": r["name"], "業種": r.get("sector") if isinstance(r.get("sector"), str) else None,
-                "株価": r1(r["株価"]), "高配当": {
-                    "対象": bool(num(r["配当利回り%"]) is not None and r["配当利回り%"] >= c15.MIN_YIELD
-                                and num(r["時価総額億"]) is not None and r["時価総額億"] >= c15.MIN_CAP),
-                    "配当利回り": r1(r["配当利回り%"], 2), "時価総額億": r1(r["時価総額億"], 0),
-                    "合格": [sum(s in ("p", "g") for s in scored), len(scored)], "指標": j},
-                "グロース": growth_part(r, g),
+                "株価": r1(r["株価"]), "配当利回り": r1(r["配当利回り%"], 2),
                 "連続増配": renzoku_part(r, lat, raw.get(c), act.get(c, {}), cover.get(c)),
                 "期待値": kitaichi_part(r, raw.get(c)),
             }

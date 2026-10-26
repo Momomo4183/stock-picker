@@ -47,6 +47,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import load  # noqa: E402
 import fetch_edinet  # noqa: E402
 import fetch_statements  # noqa: E402
+from common import NAV  # noqa: E402
+from valuation import bands, monthly_prices  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 STAGE1 = {"PER": 12, "PBR": 1.3, "ROE": 7, "ROA": 3, "配当利回り": 3, "自己資本比率": 35, "時価総額": 100}
@@ -189,6 +191,7 @@ def build(out_dir: Path) -> dict:
     print(f"第1段階を通った銘柄 {len(c1)}", flush=True)
     raw = fetch_edinet.ten_years(dict(zip(c1["code"], c1["決算期"])))
     act = actions_for(c1["code"].tolist())
+    px = monthly_prices(c1["code"].tolist())     # PER×PBR を過去と比べるため（2026-10-26 追加）
     # 営業CFと配当の支払額（配当の支払額は 2026-10-18 に足した項目なので、それより前に取った分は取り直す）
     stm = fetch_statements.update(c1["code"].tolist(), since="2026-10-18")
     stm = stm[stm["error"].fillna("") == ""]
@@ -202,6 +205,8 @@ def build(out_dir: Path) -> dict:
     for _, r in c1.iterrows():
         rec = raw.get(r["code"])
         a = adjust(rec, act.get(r["code"], {})) if rec else {}
+        vb = bands(px.get(r["code"]), a, float(r["株価"])) if a else {}
+        pp = vb.get("PERxPBR")
         ok, why, x = stage2(a)
         words = (rec or {}).get("words", {})
         doe, up, every = bool(words.get("DOE")), (x.get("BPS倍") or 0) > 1, bool(x.get("BPS毎期増"))
@@ -244,6 +249,8 @@ def build(out_dir: Path) -> dict:
             "業種": r.get("sector") if isinstance(r.get("sector"), str) else None,
             "期": f"{a['fy'][0]}〜{a['fy'][-1]}" if a.get("fy") else None,
             "方針": (rec or {}).get("policy") or None,
+            "PP": pp,
+            "PP目安": None if not pp else ("買い" if pp["now"] <= pp["mid"] else "売り"),
         })
     rows.sort(key=lambda x: (-x["通過"], -x["加点"], -(x["連続増配"] or 0), -x["配当利回り"]))
     payload = {"generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "asof": asof,
@@ -261,8 +268,8 @@ def render(p: dict) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>連続増配株</title>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--ink:#16202a;--sub:#5d6b78;--line:#e2e7ec;--accent:#0c6f79;--hi:#eef6f6;--good:#0b7a4b;--warn:#b25c00}
-@media(prefers-color-scheme:dark){:root{--bg:#0e1419;--card:#161f26;--ink:#e6ecf0;--sub:#9aa9b4;--line:#243039;--accent:#4fb6bf;--hi:#12303350;--good:#4cc38a;--warn:#f0a050}}
+:root{--bg:#f6f7f9;--card:#fff;--ink:#16202a;--sub:#5d6b78;--line:#e2e7ec;--accent:#0c6f79;--hi:#eef6f6;--good:#0b7a4b;--warn:#b25c00;--band:#0c6f7922}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1419;--card:#161f26;--ink:#e6ecf0;--sub:#9aa9b4;--line:#243039;--accent:#4fb6bf;--hi:#12303350;--good:#4cc38a;--warn:#f0a050;--band:#4fb6bf2e}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif}
 header{padding:16px 14px 6px}
@@ -287,6 +294,7 @@ tbody tr:last-child td{border-bottom:none}
 .wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .g{color:var(--good);font-weight:700}.w{color:var(--warn)}.s{color:var(--sub)}
 .pt{font-weight:700;font-size:13.5px}
+.ok{color:var(--good)}.chartbtn{background:none;border:0;padding:0;cursor:pointer;color:var(--accent)}
 .mk{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:0 5px;margin-left:2px;background:var(--hi);color:var(--good);border:1px solid var(--line)}
 .code{font:inherit;font-size:11.5px;font-weight:600;color:var(--accent);background:var(--hi);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-right:4px;cursor:pointer}
 .more{font:inherit;font-size:11.5px;color:var(--accent);background:none;border:1px solid var(--line);border-radius:6px;padding:1px 7px;cursor:pointer}
@@ -297,11 +305,11 @@ svg.sp{vertical-align:middle}
 #toast{position:fixed;left:0;right:0;bottom:18px;margin:0 auto;width:max-content;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;text-align:center;z-index:10;box-shadow:0 4px 14px #0003}
 </style></head><body>
 <header><h1>連続増配株</h1><div class="meta" id="meta"></div>
-<div class="nav"><a href="./">トップ</a><a href="check15.html">高配当株 15指標チェック</a><a href="growth.html">グロース株の候補</a><a href="kitaichi.html">期待値投資</a><a href="common.html">共通する銘柄</a></div></header>
+<div class="nav"><a href="./">トップ</a><a href="kitaichi.html">期待値投資</a><a href="common.html">共通する銘柄</a></div></header>
 <section>
 <div class="desc"><b>第1段階（今の状態）</b>　PER12倍以下・PBR1.3倍以下・ROE7%以上・ROA3%以上・配当利回り3%以上・自己資本比率35%以上・時価総額100億円以上<br>
 <b>第2段階（過去10期）</b>　EPSが赤字の期なし・9期前の2倍以上／BPSが10期ともプラス／配当は減配1回まで・無配なし<br>
-両方を満たした銘柄を<b>加点</b>の多い順に並べています（累進配当+1、BPSとDOEの組み合わせで最大+4、増配を続ける余力で最大+3）。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー、<b>方針</b>で有価証券報告書の配当方針。</div>
+両方を満たした銘柄を<b>加点</b>の多い順に並べています。<b>PER×PBR</b>は過去10年の自分自身と比べた目安です（累進配当+1、BPSとDOEの組み合わせで最大+4、増配を続ける余力で最大+3）。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー、<b>方針</b>で有価証券報告書の配当方針。</div>
 <details><summary>各列の見方</summary><dl>
 <dt>加点</dt><dd>累進配当の記載 +1 に、BPSとDOEの組み合わせの点を足します。BPS・DOEの点は当てはまる中で一番高いもの：DOEの記載だけ +1、BPSが9期前より伸びた +1、BPSが毎期増えた +2、BPSが伸びた かつ DOE +3、BPSが毎期増えた かつ DOE +4。さらに、連続増配5期以上 +1、配当性向50%以下 +1、営業CFで配当をまかなえている +1（最大8点）。累進配当・DOEは最新の有価証券報告書の文章（配当政策など）に言葉があるかで判定。決算説明資料や中期経営計画にだけ書いてある場合は拾えません。</dd>
 <dt>連続増配</dt><dd>直近の期から何期続けて増配しているか（有価証券報告書の1株あたり配当、株式分割は調整済み）。記念配当で増えた・減った期も、そのまま数えます。</dd>
@@ -309,6 +317,7 @@ svg.sp{vertical-align:middle}
 <dt>EPS・BPS（10期）</dt><dd>9期前に対する倍率。BPSの「毎期」は10期続けて増えた印。</dd>
 <dt>配当性向</dt><dd>予想配当÷実績EPS（%）。50%以下は増配の余力がある目安（緑）、70%超は橙。</dd>
 <dt>営業CF÷配当</dt><dd>決算書（4〜5期）のうち一番苦しかった期で、営業キャッシュフローが配当の支払額の何倍あったか。1倍を超えていれば、どの期も現金で配当をまかなえている（緑）。</dd>
+<dt>PER×PBR（目安・今・幅・グラフ）</dt><dd>PER×PBR（＝株価²÷（EPS×BPS））を、過去10年の毎月の自分自身の値と比べたもの。幅は下から1割〜上から1割、真ん中は中央値。今の値が中央値以下なら「買い」、上なら「売り」の目安（位置は0%＝幅の下、100%＝上）。PBR＝月末の株価÷発表済みの通期BPS。一般には22.5以下が割安の目安とも言われます（グレアムの基準）。グラフを押すと大きく表示。</dd>
 <dt>DOE</dt><dd>今の予想配当÷1株純資産（%）。「記載」はDOEを方針に使うと書いてある印。</dd>
 <dt>ROE・ROA・自己資本比率</dt><dd>直近の決算期の値（純利益÷純資産、純利益÷総資産、純資産÷総資産）。</dd>
 <dt>第2段階で落ちた銘柄</dt><dd>上のチェックを入れると、第1段階だけ通った銘柄も理由つきで灰色で表示します。</dd>
@@ -320,11 +329,30 @@ svg.sp{vertical-align:middle}
 <script>
 const D = __DATA__;
 const QUOTE = code => `https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric=${code}.T`;
-const COLS = ["銘柄","加点","株価","配当利回り","連続増配","配当10期","配当性向","CF倍","EPS倍","BPS10期","DOE","PER","PBR","ROE","ROA","自己資本比率","時価総額","業種","方針"];
-const HEAD = {"配当10期":"配当（10期）","配当性向":"配当性向%","CF倍":"営業CF÷配当","EPS倍":"EPS（10期）","BPS10期":"BPS（10期）","配当利回り":"利回り%","自己資本比率":"自己資本比率%","ROE":"ROE%","ROA":"ROA%","DOE":"DOE%","時価総額":"時価総額億"};
+const COLS = ["銘柄","加点","PP目安","PP今","PP幅","PPグラフ","株価","配当利回り","連続増配","配当10期","配当性向","CF倍","EPS倍","BPS10期","DOE","PER","PBR","ROE","ROA","自己資本比率","時価総額","業種","方針"];
+const HEAD = {"PP目安":"PER×PBRの目安","PP今":"今のPER×PBR","PP幅":"PER×PBRの幅（中央）","PPグラフ":"PER×PBRの推移（10年）","配当10期":"配当（10期）","配当性向":"配当性向%","CF倍":"営業CF÷配当","EPS倍":"EPS（10期）","BPS10期":"BPS（10期）","配当利回り":"利回り%","自己資本比率":"自己資本比率%","ROE":"ROE%","ROA":"ROA%","DOE":"DOE%","時価総額":"時価総額億"};
 const SORTKEY = {"配当10期":"配当倍","BPS10期":"BPS倍"};
 let sortCol = null, sortAsc = false, open = new Set();
 document.getElementById("meta").textContent = `株価 ${D.asof.株価} 時点 ／ 作成 ${D.generated}`;
+const openChart = new Set();
+function ppChart(b, w, h, big) {
+  const s = b.series, vals = s.map(x => x[1]).concat([b.now]);
+  const top = Math.max(...vals, b.hi) * 1.05, bot = Math.max(0, Math.min(...vals, b.lo) * 0.9);
+  const padL = big ? 34 : 2, padB = big ? 18 : 2, padT = big ? 6 : 2, padR = big ? 10 : 6;
+  const X = i => padL + i * (w - padL - padR) / s.length, Y = v => padT + (top - v) / (top - bot) * (h - padT - padB);
+  let g = `<svg viewBox="0 0 ${w} ${h}" width="${big ? "100%" : w}" ${big ? 'style="max-width:640px;height:auto;display:block"' : `height="${h}"`}>`;
+  g += `<rect x="${padL}" y="${Y(b.hi)}" width="${w - padL - padR}" height="${Y(b.lo) - Y(b.hi)}" fill="var(--band)"/>`;
+  g += `<line x1="${padL}" x2="${w - padR}" y1="${Y(b.mid)}" y2="${Y(b.mid)}" stroke="var(--sub)" stroke-dasharray="3 3" stroke-width="1"/>`;
+  g += `<polyline fill="none" stroke="var(--accent)" stroke-width="${big ? 1.8 : 1.3}" points="${s.map((x, i) => X(i) + "," + Y(x[1])).join(" ")}"/>`;
+  g += `<circle cx="${X(s.length)}" cy="${Y(b.now)}" r="${big ? 4 : 2.6}" fill="${b.now <= b.mid ? "var(--good)" : "var(--warn)"}"/>`;
+  if (big) {
+    for (const v of [b.hi, b.mid, b.lo]) g += `<text x="${padL - 4}" y="${Y(v) + 4}" font-size="10" text-anchor="end" fill="var(--sub)">${v}</text>`;
+    let last = "";
+    s.forEach((x, i) => { const y = x[0].slice(0, 4); if (y !== last && x[0].endsWith("-01")) g += `<text x="${X(i)}" y="${h - 4}" font-size="10" text-anchor="middle" fill="var(--sub)">${y}</text>`; last = y; });
+    g += `<text x="${X(s.length)}" y="${Y(b.now) - 7}" font-size="10" text-anchor="end" fill="var(--ink)">今 ${b.now}</text>`;
+  }
+  return g + "</svg>";
+}
 function spark(v) {
   const xs = v.filter(x => x !== null && x !== undefined);
   if (xs.length < 2) return "";
@@ -358,6 +386,11 @@ function cell(k, r) {
   if (["PER","ROE","ROA","自己資本比率"].includes(k)) return `<td>${f(v, 1)}</td>`;
   if (k === "時価総額") return `<td>${f(v, 0)}</td>`;
   if (k === "業種") return `<td style="text-align:left">${v || "–"}</td>`;
+  if (["PP目安","PP今","PP幅","PPグラフ"].includes(k) && !r.PP) return `<td class="s">–</td>`;
+  if (k === "PP目安") return `<td><span class="${r.PP目安 === "買い" ? "ok" : "w"}" style="font-weight:700">${r.PP目安}</span> <small class="s">${r.PP.pos}%</small></td>`;
+  if (k === "PP今") return `<td>${f(r.PP.now, 1)}</td>`;
+  if (k === "PP幅") return `<td>${f(r.PP.lo, 1)}〜${f(r.PP.hi, 1)} <small class="s">（${f(r.PP.mid, 1)}）</small></td>`;
+  if (k === "PPグラフ") return `<td><button class="chartbtn" data-c="${r.銘柄}" aria-label="グラフを大きく">${ppChart(r.PP, 120, 34, false)}</button></td>`;
   if (k === "方針") return `<td>${v ? `<button class="more" data-c="${r.銘柄}">方針</button>` : "–"}</td>`;
   return `<td>${v ?? "–"}</td>`;
 }
@@ -379,6 +412,7 @@ function draw() {
   const body = rows.map(r => {
     let h = `<tr class="${r.通過 ? "" : "fail"}">` + COLS.map(c => cell(c, r)).join("") + "</tr>";
     if (!r.通過) h += `<tr class="detail"><td colspan="${COLS.length}">第2段階で落ちた理由：${r.理由}</td></tr>`;
+    if (openChart.has(r.銘柄) && r.PP) h += `<tr class="detail"><td colspan="${COLS.length}">${r.銘柄}　PER×PBR の推移（月末）。帯＝過去10年の幅 ${r.PP.lo}〜${r.PP.hi}、点線＝中央値 ${r.PP.mid}、点＝今 ${r.PP.now}${ppChart(r.PP, 640, 170, true)}</td></tr>`;
     if (open.has(r.銘柄) && r.方針) h += `<tr class="detail"><td colspan="${COLS.length}">有価証券報告書（${r.期 ? r.期.split("〜")[1] + "期" : "最新"}）の配当方針：${r.方針}…</td></tr>`;
     return h;
   }).join("");
@@ -389,6 +423,7 @@ function draw() {
     sortCol = c; draw();
   });
   document.querySelectorAll(".code").forEach(b => b.onclick = () => copyCode(b.dataset.code));
+  document.querySelectorAll(".chartbtn").forEach(b => b.onclick = () => { openChart.has(b.dataset.c) ? openChart.delete(b.dataset.c) : openChart.add(b.dataset.c); draw(); });
   document.querySelectorAll(".more").forEach(b => b.onclick = () => { open.has(b.dataset.c) ? open.delete(b.dataset.c) : open.add(b.dataset.c); draw(); });
 }
 document.getElementById("showFail").onchange = draw;

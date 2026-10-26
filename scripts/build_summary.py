@@ -5,14 +5,17 @@
 売り時（または買い増し）の目安を見たい。中身は銘柄検索と同じでよい。
 → スプレッドシートが IMPORTDATA でこの CSV を読み、保有銘柄のコードで引く。
    保有銘柄そのものは公開しない（ご本人のスプレッドシートの中だけにある）。
+2026-10-26 高配当株 15指標・グロース株をやめ、PER×PBR の幅を足した（列の並びが変わったので、
+シートの式も作り直した: 自動トレード\\保有銘柄シート_貼り付け用.txt）。
 
 列（1銘柄1行）:
-  コード, 銘柄名, 株価, EPS（直近の通期）, PERの幅 過去10年の下・中央値・上, 過去5・3・1年の中央値,
-  15指標の合格, 15指標の対象か, グロース株か, PEG, 連続増配株か, 連続増配の加点,
-  期待値投資（載る／×（外れた条件））,
-  配当利回り, 配当性向, PBR, 業種, 株価の日付
-PERの幅は銘柄検索と同じ（毎月のPERの下から1割・中央値・上から1割）。今のPERと目安は、
-スプレッドシートがその時の株価（GOOGLEFINANCE）÷ EPS で出す。
+  1 コード  2 銘柄名  3 株価  4 EPS（直近の通期）  5 BPS（直近の通期）
+  6〜8 PERの幅 過去10年の下・中央値・上  9〜11 PERの中央値 過去5・3・1年
+  12〜14 PER×PBRの幅 過去10年の下・中央値・上  15〜17 PER×PBRの中央値 過去5・3・1年
+  18 連続増配株か  19 連続増配の加点  20 期待値投資（載る／×（外れた条件））
+  21 配当利回り  22 配当性向  23 業種  24 株価の日付
+幅は銘柄検索と同じ（毎月の値の下から1割・中央値・上から1割）。今のPER・PER×PBRと目安は、
+スプレッドシートがその時の株価（GOOGLEFINANCE）と EPS・BPS で出す。
 
 使い方（build_detail.py のあとに実行する）:
     python scripts/build_summary.py
@@ -29,8 +32,8 @@ DOCS = ROOT / "docs"
 YEARS = (10, 5, 3, 1)
 
 
-def band(per: pd.Series, years: int):
-    p = per.tail(years * 12).dropna()
+def band(v: pd.Series, years: int):
+    p = v.tail(years * 12).dropna()
     if len(p) < min(12, years * 6):
         return None
     return [round(float(np.quantile(p, q)), 1) for q in (0.1, 0.5, 0.9)]
@@ -68,26 +71,25 @@ def build() -> int:
         if not f.exists():
             continue
         m = pd.read_csv(f)
+        pp = m["PERxPBR"] if "PERxPBR" in m else pd.Series(dtype=float)
         b = {y: band(m["PER"], y) for y in YEARS}
+        c = {y: band(pp, y) for y in YEARS}
         d = detail.get(code, {})
-        hd, g, r, k = d.get("高配当", {}), d.get("グロース", {}), d.get("連続増配", {}), d.get("期待値", {})
-        peg = g.get("PEG")
+        r, k = d.get("連続増配", {}), d.get("期待値", {})
+        mid = lambda x: x[1] if x else None
         rows.append({
             "コード": code, "銘柄名": name, "株価": price, "EPS": m["EPS"].iloc[-1],
-            "PER下10年": b[10][0] if b[10] else None, "PER中央10年": b[10][1] if b[10] else None,
-            "PER上10年": b[10][2] if b[10] else None,
-            "PER中央5年": b[5][1] if b[5] else None, "PER中央3年": b[3][1] if b[3] else None,
-            "PER中央1年": b[1][1] if b[1] else None,
-            # 「9/10」だとスプレッドシートが日付（9月10日）と読むので、全角の／にする（2026-10-25）
-            "15指標": f"{hd['合格'][0]}／{hd['合格'][1]}" if hd.get("合格") else None,
-            "15指標の対象": "対象" if hd.get("対象") else "対象外",
-            "グロース株": "載る" if g.get("対象") and g.get("グロース") else "–",
-            "PEG": (f"{peg[0]}（要確認）" if isinstance(peg, list) else peg),
+            "BPS": m["BPS"].iloc[-1] if "BPS" in m else None,
+            "PER下10年": b[10][0] if b[10] else None, "PER中央10年": mid(b[10]), "PER上10年": b[10][2] if b[10] else None,
+            "PER中央5年": mid(b[5]), "PER中央3年": mid(b[3]), "PER中央1年": mid(b[1]),
+            "PERxPBR下10年": c[10][0] if c[10] else None, "PERxPBR中央10年": mid(c[10]),
+            "PERxPBR上10年": c[10][2] if c[10] else None,
+            "PERxPBR中央5年": mid(c[5]), "PERxPBR中央3年": mid(c[3]), "PERxPBR中央1年": mid(c[1]),
             "連続増配株": "載る" if r.get("第1段階通過") and r.get("第2段階通過") else "–",
             "連続増配の加点": r.get("合計"),
             "期待値投資": kitaichi_text(k),
-            "配当利回り": hd.get("配当利回り"), "配当性向": (k.get("配当性向") or [None])[0],
-            "PBR": g.get("PBR"), "業種": d.get("業種"), "株価の日付": idx["asof"],
+            "配当利回り": d.get("配当利回り"), "配当性向": (k.get("配当性向") or [None])[0],
+            "業種": d.get("業種"), "株価の日付": idx["asof"],
         })
     out = pd.DataFrame(rows)
     out.to_csv(DOCS / "summary.csv", index=False, encoding="utf-8", lineterminator="\n")

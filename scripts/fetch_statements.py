@@ -12,7 +12,7 @@ yfinance は1社ずつの問い合わせで取得制限がかかりやすいの�
 
 出力: data/statements.csv（code, 決算期, 各項目, 取得日）
 
-使い方（普段は build_check15.py から呼ばれる）:
+使い方（普段は build_renzoku.py・build_detail.py から呼ばれる）:
     python scripts/fetch_statements.py 7203 8591 ...
 """
 import datetime as dt

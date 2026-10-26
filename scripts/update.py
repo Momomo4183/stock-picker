@@ -3,9 +3,9 @@
 
   1. 財務（1株あたりの値）が古ければ取り直す（週1回・遅い）
   2. 株価を取り直す（全銘柄・約1分）
-  3. ページを作り直す（check15.html・growth.html・renzoku.html・kitaichi.html と、トップ index.html・共通する銘柄 common.html）。
-     トップの「銘柄検索」が読む docs/per/（PERの履歴・銘柄一覧）と docs/detail/（4つの条件の全要素）もここで作る
-     候補の配当履歴もここで取る。15指標の決算書は30日間使い回す
+  3. ページを作り直す（renzoku.html・kitaichi.html と、トップ index.html・共通する銘柄 common.html）。
+     トップの「銘柄検索」が読む docs/per/（PER・PER×PBRの履歴・銘柄一覧）と docs/detail/（スクリーニングの全要素）、
+     保有銘柄シートが読む docs/summary.csv もここで作る
   4. GitHub に反映する（変化があったときだけ）
 
 株価だけ取ればよいのは、PER・PBR・時価総額・配当利回りを
@@ -14,7 +14,9 @@
 2026-09-25 に②（高配当・優待）向けのページへ作り替えた。信用残（JPXの
 週末残高PDF）はスイング用の③にしか使っていなかったので取得をやめた。
 2026-10-18 に「配当株の買い場」を削除し、トップ（各ページへのリンク）と
-「共通する銘柄」（common.html。4つすべて／グロース株×期待値投資）を追加した。
+「共通する銘柄」（common.html）を追加した。
+2026-10-26 に「高配当株 15指標チェック」「グロース株の候補」を削除し、PER×PBR を足した。
+共通する銘柄は「連続増配株 × 期待値投資」だけにした。
 
 使い方:
     python scripts/update.py            通常（これを実行する）
@@ -105,34 +107,29 @@ def main() -> int:
         print("  [NG] 株価が取れませんでした。ページは作り直しません。")
         return 1
 
-    print("\n[3/3] ページを作り直します（候補の配当履歴もここで取ります）")
-    # 15指標チェック。決算書は30日間使い回すので、普段は配当履歴の取得だけで済む
+    print("\n[3/3] ページを作り直します")
+    # 連続増配株・期待値投資。EDINET のAPIキー（.edinet_key）が要る。報告書は保存して使い回す
+    if not (ROOT / ".edinet_key").exists():
+        print("  [NG] EDINET のAPIキー（.edinet_key）が無いので、ページを作れません")
+        return 1
     ok = 0
-    for script, name in (("build_check15.py", "高配当株 15指標チェック"), ("build_growth.py", "グロース株の候補")):
+    for script, name in (("build_renzoku.py", "連続増配株"), ("build_kitaichi.py", "期待値投資")):
         if run(py + [str(BASE / script)]) == 0:
             ok += 1
         else:
             print(f"  [!] {name}のページは作れませんでした（ほかのページは続けて作ります）")
-    # 連続増配株。EDINET のAPIキー（.edinet_key）が要る。報告書は保存して使い回す
-    if (ROOT / ".edinet_key").exists():
-        if run(py + [str(BASE / "build_renzoku.py")]) != 0:
-            print("  [!] 連続増配株のページは作れませんでした（ほかのページは更新済み）")
-        if run(py + [str(BASE / "build_kitaichi.py")]) != 0:
-            print("  [!] 期待値投資のページは作れませんでした（ほかのページは更新済み）")
-        # トップの「PER検索」が読む、銘柄ごとの過去10年のPER（docs/per/コード.csv）と銘柄一覧
-        if run(py + [str(BASE / "build_per_data.py")], timeout=3 * 3600) != 0:
-            print("  [!] PERの履歴（PER検索用）は作れませんでした（ほかのページは更新済み）")
-        elif run(py + [str(BASE / "build_per_page.py")]) != 0:
-            print("  [!] PER検索の銘柄一覧は作れませんでした")
-        # 検索結果に出す、4つの条件の全要素（全銘柄。決算書は30日ごとに取り直すので、その回は時間がかかる）
-        if run(py + [str(BASE / "build_detail.py")], timeout=3 * 3600) != 0:
-            print("  [!] 検索結果の4つの条件の要素は作れませんでした")
-        # 保有銘柄のスプレッドシートが読む、全銘柄の検索結果のまとめ（docs/summary.csv）
-        elif run(py + [str(BASE / "build_summary.py")]) != 0:
-            print("  [!] スプレッドシート用のまとめ（summary.csv）は作れませんでした")
-    else:
-        print("  [!] EDINET のAPIキーが無いので、連続増配株・期待値投資のページは作りません")
-    # トップと「共通する銘柄」（上の4ページの結果を読むので最後に作る）
+    # トップの「銘柄検索」が読む、銘柄ごとの過去10年のPER・PER×PBR（docs/per/コード.csv）と銘柄一覧
+    if run(py + [str(BASE / "build_per_data.py")], timeout=3 * 3600) != 0:
+        print("  [!] PERの履歴（銘柄検索用）は作れませんでした（ほかのページは更新済み）")
+    elif run(py + [str(BASE / "build_per_page.py")]) != 0:
+        print("  [!] 銘柄検索の銘柄一覧は作れませんでした")
+    # 検索結果に出すスクリーニングの全要素（全銘柄。決算書は30日ごとに取り直すので、その回は時間がかかる）
+    if run(py + [str(BASE / "build_detail.py")], timeout=3 * 3600) != 0:
+        print("  [!] 検索結果のスクリーニングの要素は作れませんでした")
+    # 保有銘柄のスプレッドシートが読む、全銘柄の検索結果のまとめ（docs/summary.csv）
+    elif run(py + [str(BASE / "build_summary.py")]) != 0:
+        print("  [!] スプレッドシート用のまとめ（summary.csv）は作れませんでした")
+    # トップと「共通する銘柄」（上の2ページの結果を読むので最後に作る）
     if run(py + [str(BASE / "build_top.py")]) != 0:
         print("  [!] トップ・共通する銘柄のページは作れませんでした")
     if ok == 0:

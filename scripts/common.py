@@ -19,6 +19,9 @@ warnings.filterwarnings("ignore")
 BASE = Path(__file__).resolve().parent
 ROOT = BASE.parent
 DATA = ROOT / "data"
+# 各ページの上に並べるリンク（2026-10-26 高配当株 15指標・グロース株のページを削除）
+NAV = [("./", "トップ"), ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"),
+       ("common.html", "共通する銘柄")]
 
 
 def latest(pattern: str) -> Path:

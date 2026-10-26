@@ -17,6 +17,8 @@
                         （決算発表は期末の約3か月後として扱う）
   今のPER               今の株価÷直近の通期EPS（グラフと同じ物差しにそろえる）
   売買の目安            今のPERが中央値以下なら「買い」、上なら「売り」
+  PER×PBR（2026-10-26 追加）  PERと同じ形で、過去10年の毎月の PER×PBR の幅と今の位置・目安
+                        （PBR＝月末の株価÷発表済みの通期BPS。計算は valuation.py）
 
 使い方:
     python scripts/build_kitaichi.py
@@ -32,11 +34,11 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import load  # noqa: E402
 from build_renzoku import actions_for, adjust  # noqa: E402
+from valuation import bands, monthly_prices  # noqa: E402
 import fetch_edinet  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-NAV = [("./", "トップ"), ("check15.html", "高配当株 15指標チェック"), ("growth.html", "グロース株の候補"),
-       ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"), ("common.html", "共通する銘柄")]
+from common import NAV  # noqa: E402
 MIN_YIELD, MAX_PAYOUT = 2.5, 50
 
 
@@ -70,60 +72,6 @@ def op_trend(o: dict):
     return bool(v[-1] > v[0] and slope > 0), v, cuts, ratio
 
 
-def monthly_prices(codes: list) -> dict:
-    """月末の株価（11年分）。取得制限で空になった銘柄は、少し待って取り直す。
-
-    2026-10-19 の更新で、1銘柄だけ取得制限で空の株価が返り、期待値投資のページ全体が止まった。
-    空の銘柄は結果に入れず、待ってから数銘柄ずつ取り直す（それでも取れなければその銘柄だけ飛ばす）。
-    """
-    import time
-    import yfinance as yf
-    out = {}
-
-    def fetch(tks, size):
-        for i in range(0, len(tks), size):
-            chunk = tks[i:i + size]
-            d = yf.download(chunk, period="11y", interval="1mo", auto_adjust=False, progress=False,
-                            group_by="ticker", threads=True)
-            for tk in chunk:
-                try:
-                    s = (d[tk] if len(chunk) > 1 else d)["Close"].dropna()
-                except KeyError:
-                    continue
-                if len(s):
-                    s.index = pd.DatetimeIndex(s.index).tz_localize(None)
-                    out[tk[:-2]] = s
-
-    tks = [f"{c}.T" for c in codes]
-    fetch(tks, 100)
-    for wait in (30, 90):
-        miss = [t for t in tks if t[:-2] not in out]
-        if not miss:
-            break
-        print(f"  月末の株価が取れなかった {len(miss)}銘柄を、{wait}秒待って取り直します", flush=True)
-        time.sleep(wait)
-        fetch(miss, 20)
-    return out
-
-
-def per_band(close: pd.Series, a: dict, price_now: float):
-    """毎月の PER と、その幅（下から1割・中央値・上から1割）、今の PER。"""
-    if close is None or len(close) == 0:
-        return None
-    eps = pd.Series(a["EPS"], index=[(pd.Timestamp(fy + "-01") + pd.offsets.MonthEnd(0) + pd.DateOffset(months=3))
-                                     for fy in a["fy"]]).sort_index()
-    known = eps.reindex(close.index.union(eps.index)).ffill().reindex(close.index)
-    per = (close / known).where(known > 0).dropna()
-    per = per[per.index >= close.index[-1] - pd.DateOffset(years=10)]
-    if len(per) < 36 or a["EPS"][-1] <= 0:
-        return None
-    lo, mid, hi = (float(per.quantile(q)) for q in (0.1, 0.5, 0.9))
-    now = price_now / a["EPS"][-1]
-    return {"lo": round(lo, 1), "mid": round(mid, 1), "hi": round(hi, 1), "now": round(now, 1),
-            "pos": round((now - lo) / (hi - lo) * 100) if hi > lo else None,
-            "series": [[d.strftime("%Y-%m"), round(float(v), 1)] for d, v in per.items()]}
-
-
 def build(out_dir: Path) -> dict:
     df, asof = load()
     ends = fy_ends()
@@ -153,12 +101,16 @@ def build(out_dir: Path) -> dict:
     for c, r, opv, cuts, ratio in picks:
         a = adjust(r, act.get(c, {}))
         x = info.loc[c]
-        band = per_band(px[c], a, float(x["株価"])) if c in px and a else None
+        vb = bands(px.get(c), a, float(x["株価"])) if a else {}
+        band = vb.get("PER")
         sales = [r["売上"][k] for k in sorted(r["売上"])][-11:]
         rows.append({
             "銘柄": f"{c} {x['name']}",
             "目安": None if not band else ("買い" if band["now"] <= band["mid"] else "売り"),
             "PER": band,
+            "PP": vb.get("PERxPBR"),
+            "PP目安": None if not vb.get("PERxPBR") else ("買い" if vb["PERxPBR"]["now"] <= vb["PERxPBR"]["mid"] else "売り"),
+            "PBR": vb.get("PBR今"),
             "株価": round(float(x["株価"]), 1),
             "配当利回り": round(float(x["配当利回り%"]), 2),
             "配当性向": round(float(x["配当性向%"])),
@@ -224,11 +176,12 @@ tr.detail td{white-space:normal;text-align:left;background:var(--hi);position:st
 __NAV__</header>
 <section>
 <div class="desc"><b>条件</b>　配当利回り2.5%以上・配当性向50%以下・売上高10期連続増加・営業利益が10期で増加傾向（減益の期があってもよい）<br>
-<b>確認</b>　過去10年のPERの幅（下から1割〜上から1割）と、今のPERがその中のどこにあるか。幅の真ん中（中央値）より下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>の目安です。<br>
+<b>確認</b>　過去10年のPERとPER×PBRの幅（下から1割〜上から1割）と、今の値がその中のどこにあるか。幅の真ん中（中央値）より下なら<b class="buy">買い</b>、上なら<b class="sell">売り</b>の目安です。<br>
 グラフを押すと大きく表示。見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー。</div>
 <details><summary>各列の見方</summary><dl>
 <dt>目安・位置</dt><dd>今のPERが過去10年の幅のどこにあるか（0%＝幅の下端、100%＝上端。0未満・100超は幅の外）。中央値以下で「買い」、上で「売り」。</dd>
 <dt>PER（今・幅）</dt><dd>今のPER＝今の株価÷直近の通期EPS。幅は過去10年の毎月のPER（月末の株価÷その時点で発表済みの通期EPS）の下から1割〜上から1割、真ん中は中央値。EPSが赤字の月は除く。</dd>
+<dt>PER×PBR（今・幅・目安）</dt><dd>PERと同じ形で、PER×PBR（＝株価²÷（EPS×BPS））を過去10年の自分自身と比べたもの。PBR＝月末の株価÷その時点で発表済みの通期BPS。一般には22.5以下が割安の目安とも言われます（グレアムの基準）。</dd>
 <dt>PERのグラフ</dt><dd>線＝毎月のPER、帯＝幅（下から1割〜上から1割）、点線＝中央値、点＝今。</dd>
 <dt>売上・営業利益</dt><dd>有価証券報告書の連結の値（億円）。売上は11期分で10回続けて増収。営業利益は10期分で、直近が9期前より多く、10期をならした傾きが右上がり。減益の回数も表示。</dd>
 <dt>注意</dt><dd>会計基準の変更（2021年度からの収益認識基準など）で売上の数字が変わり、連続増収が途切れて見える会社があります。PERの幅は過去の話で、同じ幅に戻る保証はありません。</dd>
@@ -240,9 +193,10 @@ __NAV__</header>
 <script>
 const D = __DATA__;
 const QUOTE = code => `https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric=${code}.T`;
-const COLS = ["銘柄","目安","PER今","PER幅","グラフ","株価","配当利回り","配当性向","売上","営業利益","時価総額","業種"];
-const HEAD = {"PER今":"今のPER","PER幅":"PERの幅（中央）","グラフ":"PERの推移（10年）","配当利回り":"利回り%","配当性向":"配当性向%","売上":"売上（11期）","営業利益":"営業利益（10期）","時価総額":"時価総額億"};
+const COLS = ["銘柄","目安","PER今","PER幅","グラフ","PP目安","PP今","PP幅","PPグラフ","株価","配当利回り","配当性向","売上","営業利益","時価総額","業種"];
+const HEAD = {"目安":"PERの目安","PER今":"今のPER","PER幅":"PERの幅（中央）","グラフ":"PERの推移（10年）","PP目安":"PER×PBRの目安","PP今":"今のPER×PBR","PP幅":"PER×PBRの幅（中央）","PPグラフ":"PER×PBRの推移（10年）","配当利回り":"利回り%","配当性向":"配当性向%","売上":"売上（11期）","営業利益":"営業利益（10期）","時価総額":"時価総額億"};
 const KEY = {"目安": r => r.PER ? r.PER.pos : null, "PER今": r => r.PER ? r.PER.now : null, "PER幅": r => r.PER ? r.PER.mid : null,
+             "PP目安": r => r.PP ? r.PP.pos : null, "PP今": r => r.PP ? r.PP.now : null, "PP幅": r => r.PP ? r.PP.mid : null,
              "売上": r => r.売上倍, "営業利益": r => r.営業利益倍};
 let sortCol = null, sortAsc = true, open = new Set();
 document.getElementById("meta").textContent = `株価 ${D.asof.株価} 時点 ／ 作成 ${D.generated}`;
@@ -280,6 +234,12 @@ function cell(k, r) {
     return `<td><button class="code" data-code="${code}">${code}</button><a href="${QUOTE(code)}" target="_blank" rel="noopener">${name}</a></td>`;
   }
   if (!b && ["目安","PER今","PER幅","グラフ"].includes(k)) return `<td class="s">–</td>`;
+  const pp = r.PP;
+  if (!pp && ["PP目安","PP今","PP幅","PPグラフ"].includes(k)) return `<td class="s">–</td>`;
+  if (k === "PP目安") return `<td><span class="${r.PP目安 === "買い" ? "buy" : "sell"}">${r.PP目安}</span> <small class="s">${pp.pos}%</small></td>`;
+  if (k === "PP今") return `<td>${f(pp.now, 1)}</td>`;
+  if (k === "PP幅") return `<td>${f(pp.lo, 1)}〜${f(pp.hi, 1)} <small class="s">（${f(pp.mid, 1)}）</small></td>`;
+  if (k === "PPグラフ") return `<td><button class="chartbtn" data-c="${r.銘柄}" aria-label="グラフを大きく">${perChart(pp, 120, 34, false)}</button></td>`;
   if (k === "目安") return `<td><span class="${r.目安 === "買い" ? "buy" : "sell"}">${r.目安}</span> <small class="s">${b.pos}%</small></td>`;
   if (k === "PER今") return `<td>${f(b.now, 1)}</td>`;
   if (k === "PER幅") return `<td>${f(b.lo, 1)}〜${f(b.hi, 1)} <small class="s">（${f(b.mid, 1)}）</small></td>`;
@@ -307,7 +267,9 @@ function draw() {
   const head = COLS.map(c => `<th data-c="${c}">${HEAD[c] || c}</th>`).join("");
   const body = rows.map(r => {
     let h = "<tr>" + COLS.map(c => cell(c, r)).join("") + "</tr>";
-    if (open.has(r.銘柄) && r.PER) h += `<tr class="detail"><td colspan="${COLS.length}"><div class="legend">${r.銘柄}　PER の推移（月末）。帯＝過去10年の幅 ${r.PER.lo}〜${r.PER.hi}、点線＝中央値 ${r.PER.mid}、点＝今 ${r.PER.now}</div>${perChart(r.PER, 640, 170, true)}</td></tr>`;
+    if (open.has(r.銘柄) && (r.PER || r.PP)) h += `<tr class="detail"><td colspan="${COLS.length}">` +
+      (r.PER ? `<div class="legend">${r.銘柄}　PER の推移（月末）。帯＝過去10年の幅 ${r.PER.lo}〜${r.PER.hi}、点線＝中央値 ${r.PER.mid}、点＝今 ${r.PER.now}</div>${perChart(r.PER, 640, 170, true)}` : "") +
+      (r.PP ? `<div class="legend">PER×PBR の推移（月末）。帯＝過去10年の幅 ${r.PP.lo}〜${r.PP.hi}、点線＝中央値 ${r.PP.mid}、点＝今 ${r.PP.now}</div>${perChart(r.PP, 640, 170, true)}` : "") + `</td></tr>`;
     return h;
   }).join("");
   document.getElementById("body").innerHTML = `<div class="wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;

@@ -15,6 +15,8 @@ import json
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import load  # noqa: E402
 
@@ -26,9 +28,12 @@ def build() -> int:
     df, asof = load()
     have = {p.stem for p in (DOCS / "per").glob("*.csv")}
     d = df[df["code"].isin(have)]
-    idx = {r["code"]: [r["name"], round(float(r["株価"]), 1)] for _, r in d.iterrows()}
-    (DOCS / "per" / "index.json").write_text(json.dumps({"asof": asof["株価"], "stocks": idx}, ensure_ascii=False),
-                                             encoding="utf-8")
+    # 株価が取れなかった銘柄は null にする。NaN のまま書くと JSON として読めず、
+    # 検索欄が一覧ごと読めなくなる（2026-11-01〜11-04 に13銘柄の NaN で検索が全部止まった）
+    idx = {r["code"]: [r["name"], round(float(r["株価"]), 1) if pd.notna(r["株価"]) else None]
+           for _, r in d.iterrows()}
+    (DOCS / "per" / "index.json").write_text(
+        json.dumps({"asof": asof["株価"], "stocks": idx}, ensure_ascii=False, allow_nan=False), encoding="utf-8")
     return len(idx)
 
 

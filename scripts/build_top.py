@@ -114,8 +114,8 @@ async function show(code) {
     rows = t.trim().split("\\n").slice(1).map(l => { const c = l.split(","); return [c[0], +c[1], +c[2], num(c[3]), num(c[4]), num(c[5]), num(c[6])]; });
   } catch (e) { msg.textContent = "データを読めませんでした。少し待ってからもう一度お試しください。"; return; }
   const last = rows[rows.length - 1], eps = last[2], bps = last[4], price = info[1];
-  const now = eps > 0 ? price / eps : null;
-  const pbrNow = bps > 0 ? price / bps : null;
+  const now = price && eps > 0 ? price / eps : null;
+  const pbrNow = price && bps > 0 ? price / bps : null;
   const ppNow = now !== null && pbrNow !== null ? now * pbrNow : null;
   // 直近 n 年の毎月の値（col: 3＝PER、6＝PER×PBR）から、幅・中央値・今の位置
   const bandOf = (n, col, cur) => {
@@ -143,7 +143,7 @@ async function show(code) {
     const pe = bandOf(n, 3, now), pp = bandOf(n, 6, ppNow);
     document.getElementById("perbox").innerHTML = box("PER", n, pe, now === null ? null : now,
       `<div><div class="k">株価（${IDX.asof}）</div><div class="v">${f(price, 1)}</div></div><div><div class="k">直近の通期EPS</div><div class="v">${f(eps, 1)}</div></div>`)
-      .replace(`<div class="v">–</div></div>`, now === null ? `<div class="v">赤字</div></div>` : `<div class="v">–</div></div>`);
+      .replace(`<div class="v">–</div></div>`, now === null && price && !(eps > 0) ? `<div class="v">赤字</div></div>` : `<div class="v">–</div></div>`);
     document.getElementById("ppbox").innerHTML = box("PER×PBR", n, pp, ppNow,
       `<div><div class="k">今のPBR</div><div class="v">${pbrNow === null ? "–" : f(pbrNow, 2)}</div></div><div><div class="k">直近の通期BPS</div><div class="v">${f(bps, 1)}</div></div>`);
     document.getElementById("perchart").innerHTML = chart("PER", pe, 3);

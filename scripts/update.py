@@ -22,6 +22,9 @@
     python scripts/update.py            通常（これを実行する）
     python scripts/update.py --full     財務も必ず取り直す
     python scripts/update.py --no-push  GitHub に反映しない（手元で確認するとき）
+    python scripts/update.py --no-fund  財務は古くても取り直さない（平日12時の自動更新。2026-11-10）
+                                        自動売買が 12:30 に yfinance を使うので、それまでに終わらせる。
+                                        財務は手動の更新（ダブルクリック）で週1回取り直す
 """
 import datetime as dt
 import glob
@@ -85,6 +88,7 @@ def add_docs() -> None:
 def main() -> int:
     full = "--full" in sys.argv
     no_push = "--no-push" in sys.argv
+    no_fund = "--no-fund" in sys.argv
     started = dt.datetime.now()
     print("=" * 56)
     print(f"  銘柄ピックアップ 更新  {started:%Y-%m-%d %H:%M:%S}")
@@ -93,7 +97,9 @@ def main() -> int:
     py = [sys.executable, "-u"]
 
     fund_age = age_days("fundamentals_*.csv")
-    if full or fund_age is None or fund_age >= FUND_MAX_AGE_DAYS:
+    if no_fund and not full and fund_age is not None:
+        print(f"\n[1/3] 財務は{fund_age}日前のものを使います（自動更新のため取り直しません）")
+    elif full or fund_age is None or fund_age >= FUND_MAX_AGE_DAYS:
         why = "指定" if full else ("無い" if fund_age is None else f"{fund_age}日前")
         print(f"\n[1/3] 財務（1株あたりの値）を取り直します（{why}）")
         if run(py + [str(BASE / "fetch_data.py"), "--fundamentals-only"]) == 0:

@@ -24,7 +24,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import load  # noqa: E402
+from common import load, save_dividend_actual  # noqa: E402
 from build_renzoku import actions_for, adjust  # noqa: E402
 from build_kitaichi import fy_ends  # noqa: E402
 from valuation import monthly_prices, monthly_table  # noqa: E402
@@ -53,9 +53,12 @@ def build(codes=None) -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     n = 0
     skipped = 0
+    div = {}       # 2026-11-11 各ページの配当利回り・配当性向に使う直近の通期の配当とEPS（common.load が読む）
     for c, rec in raw.items():
         try:                                   # 1銘柄のデータの不具合で全体が止まらないように
             a = adjust(rec, act.get(c, {}))
+            if a and a["DPS"][-1] is not None and a["EPS"][-1] is not None:
+                div[c] = {"fy": a["fy"][-1], "DPS": round(a["DPS"][-1], 3), "EPS": round(a["EPS"][-1], 3)}
             if not a or c not in px or len(px[c]) < 12:
                 continue
             s = series(px[c], a)
@@ -67,7 +70,8 @@ def build(codes=None) -> int:
             continue
         s.round({"株価": 1, "EPS": 2, "PER": 1, "BPS": 1, "PBR": 2, "PERxPBR": 1}).to_csv(OUT / f"{c}.csv", encoding="utf-8", lineterminator="\n")
         n += 1
-    print(f"作成: {OUT}  {n}銘柄", flush=True)
+    save_dividend_actual(div)
+    print(f"作成: {OUT}  {n}銘柄（配当の実績 {len(div)}銘柄）", flush=True)
     return n
 
 

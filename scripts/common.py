@@ -6,7 +6,17 @@
 
 定義の確認済み事項（2026-09-17 スーパースクリーナーとの突き合わせ）:
     PER は実績。配当利回りは予想（dividendRate ÷ 株価）
+2026-11-11 配当利回り・配当性向を「実績」に変えた（ご本人の決定）。yfinance の予想配当（dividendRate）は
+    年1回配当の銘柄を2倍にするなど、配当のある銘柄の約17%で実績の1.6倍以上になっていた
+    （ヤマト 1967: 予想91円が182円、カゴメ 2811: 588円）。今は
+      配当   ＝ 直近の通期の1株配当（「配当（10期）」と同じ。yfinance の配当履歴を期ごとに合計、
+               無い期は有価証券報告書の値。分割は今の株数に直してある）
+      配当性向 ＝ その配当 ÷ 同じ期の EPS（有価証券報告書。summary.csv の EPS 列と同じ）
+      配当利回り ＝ その配当 ÷ 今の株価
+    元は build_per_data.py が書く data/dividend_actual.json。無い銘柄は yfinance の
+    過去12か月の配当（trailingAnnualDividendRate）÷ 過去12か月のEPS（trailingEps）で補う。
 """
+import json
 import glob
 import warnings
 from pathlib import Path
@@ -39,6 +49,29 @@ def atr_pct(d: pd.DataFrame, n: int = 14) -> float:
     return float(v) if pd.notna(v) else np.nan
 
 
+DIV_ACTUAL = DATA / "dividend_actual.json"
+DIV_MAX_AGE_DAYS = 550     # 直近の通期がこれより古い（報告書が見つからない等）なら使わない
+DIV_MAX_YIELD = 0.3        # 配当が株価のこの割合を超えたら取り違えとみなす
+
+
+def save_dividend_actual(rows: dict) -> None:
+    """{コード: {"fy": "YYYY-MM", "DPS": 値, "EPS": 値}} を data/dividend_actual.json に足す。"""
+    cur = json.loads(DIV_ACTUAL.read_text(encoding="utf-8")) if DIV_ACTUAL.exists() else {}
+    cur.update(rows)
+    DIV_ACTUAL.write_text(json.dumps(cur, ensure_ascii=False), encoding="utf-8")
+
+
+def dividend_actual() -> pd.DataFrame:
+    """銘柄ごとの直近の通期の配当と EPS（code, 実績配当, 実績EPS, 配当の期）。"""
+    if not DIV_ACTUAL.exists():
+        return pd.DataFrame(columns=["code", "実績配当", "実績EPS", "配当の期"])
+    limit = (pd.Timestamp.today() - pd.Timedelta(days=DIV_MAX_AGE_DAYS)).strftime("%Y-%m")
+    rows = [{"code": c, "実績配当": v.get("DPS"), "実績EPS": v.get("EPS"), "配当の期": v.get("fy")}
+            for c, v in json.loads(DIV_ACTUAL.read_text(encoding="utf-8")).items()
+            if (v.get("fy") or "") >= limit]
+    return pd.DataFrame(rows)
+
+
 def load() -> tuple:
     f_fund, f_px = latest("fundamentals_*.csv"), latest("prices_*.pkl")
     fund = pd.read_csv(f_fund, dtype={"code": str}, encoding="utf-8-sig")
@@ -60,14 +93,25 @@ def load() -> tuple:
     price = df["株価"]
     df["PER"] = (price / df["trailingEps"]).where(df["trailingEps"] > 0)
     df["PBR"] = (price / df["bookValue"]).where(df["bookValue"] > 0)
-    df["配当利回り%"] = df["dividendRate"] / price * 100
     df["時価総額億"] = price * df["sharesOutstanding"] / 1e8
-    for col, src in (("PER", "trailingPE"), ("PBR", "priceToBook"),
-                     ("配当利回り%", "dividendYield")):
+    for col, src in (("PER", "trailingPE"), ("PBR", "priceToBook")):
         df[col] = df[col].fillna(df[src])
     df["時価総額億"] = df["時価総額億"].fillna(df["marketCap"] / 1e8)
-    df["配当性向%"] = (df["dividendRate"] / df["trailingEps"] * 100).where(
-        df["trailingEps"] > 0)
+    # 配当は実績（上の説明）。報告書の値が無い銘柄だけ yfinance の過去12か月で補う
+    df = df.merge(dividend_actual(), on="code", how="left")
+    has = df["実績配当"].notna()
+    df["配当"] = pd.to_numeric(df["実績配当"].where(has, df["trailingAnnualDividendRate"]), errors="coerce")
+    df["配当EPS"] = pd.to_numeric(df["実績EPS"].where(has, df["trailingEps"]), errors="coerce")
+    # 株価の3割を超える配当は取り違え（テンアライド 8207: 報告書の配当 40,118円は優先株の分。普通株は無配）。
+    # yfinance の過去12か月で補い、それもおかしければ空欄にする
+    tr = pd.to_numeric(df["trailingAnnualDividendRate"], errors="coerce")
+    odd = df["配当"] > price * DIV_MAX_YIELD
+    df.loc[odd, "配当"] = tr.where(tr <= price * DIV_MAX_YIELD)[odd]
+    df.loc[odd, "配当EPS"] = pd.to_numeric(df["trailingEps"], errors="coerce")[odd]
+    has = has & ~odd
+    df["配当の出どころ"] = np.where(has, "報告書", np.where(df["配当"].notna(), "yfinance過去12か月", ""))
+    df["配当利回り%"] = df["配当"] / price * 100
+    df["配当性向%"] = (df["配当"] / df["配当EPS"] * 100).where(df["配当EPS"] > 0)
     asof = {"株価": str(px["終値日"].max()), "財務": f_fund.stem.split("_")[-1]}
     return df, asof
 

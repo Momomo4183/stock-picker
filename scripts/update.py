@@ -118,17 +118,19 @@ def main() -> int:
     if not (ROOT / ".edinet_key").exists():
         print("  [NG] EDINET のAPIキー（.edinet_key）が無いので、ページを作れません")
         return 1
+    # トップの「銘柄検索」が読む、銘柄ごとの過去10年のPER・PER×PBR（docs/per/コード.csv）と銘柄一覧。
+    # 2026-11-11 各ページの配当利回り・配当性向に使う実績の配当（data/dividend_actual.json）もここで作るので、
+    # 連続増配株・期待値投資より先に動かす
+    if run(py + [str(BASE / "build_per_data.py")], timeout=3 * 3600) != 0:
+        print("  [!] PERの履歴（銘柄検索用）は作れませんでした（配当は前回の実績を使います）")
+    elif run(py + [str(BASE / "build_per_page.py")]) != 0:
+        print("  [!] 銘柄検索の銘柄一覧は作れませんでした")
     ok = 0
     for script, name in (("build_renzoku.py", "連続増配株"), ("build_kitaichi.py", "期待値投資")):
         if run(py + [str(BASE / script)]) == 0:
             ok += 1
         else:
             print(f"  [!] {name}のページは作れませんでした（ほかのページは続けて作ります）")
-    # トップの「銘柄検索」が読む、銘柄ごとの過去10年のPER・PER×PBR（docs/per/コード.csv）と銘柄一覧
-    if run(py + [str(BASE / "build_per_data.py")], timeout=3 * 3600) != 0:
-        print("  [!] PERの履歴（銘柄検索用）は作れませんでした（ほかのページは更新済み）")
-    elif run(py + [str(BASE / "build_per_page.py")]) != 0:
-        print("  [!] 銘柄検索の銘柄一覧は作れませんでした")
     # 検索結果に出すスクリーニングの全要素（全銘柄。決算書は30日ごとに取り直すので、その回は時間がかかる）
     if run(py + [str(BASE / "build_detail.py")], timeout=3 * 3600) != 0:
         print("  [!] 検索結果のスクリーニングの要素は作れませんでした")

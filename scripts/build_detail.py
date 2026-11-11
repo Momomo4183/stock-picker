@@ -86,7 +86,7 @@ def renzoku_part(r, lat, rec, act, cover) -> dict:
            ["連続増配5期以上", f"{x.get('連続増配')}期" if x.get("連続増配") is not None else "–", 1 if (x.get("連続増配") or 0) >= 5 else 0],
            ["配当性向50%以下", f"{round(payout)}%" if payout else "–", 1 if payout is not None and payout <= 50 else 0],
            ["営業CFで配当をまかなえる", f"{r1(cv)}倍" if cv is not None else "データなし", 1 if cv is not None and cv > 1 else 0]]
-    bv, dr = num(r.get("bookValue")), num(r.get("dividendRate"))
+    bv, dr = num(r.get("bookValue")), num(r.get("配当"))
     return {"第1段階": st1, "第1段階通過": all(c[3] for c in st1), "第2段階": st2, "第2段階通過": bool(ok2),
             "理由": "・".join(why), "加点": [p for p in pts], "合計": sum(p[2] for p in pts),
             "連続増配": x.get("連続増配"), "配当10期": [r1(v, 2) for v in dps], "配当倍": r1(x.get("配当倍"), 2),

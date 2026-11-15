@@ -245,7 +245,11 @@ def build(docs: Path) -> dict:
     hit = sorted(set(R) & set(K))
     rows = sorted([row(k) for k in hit], key=lambda z: (z["目安"] != "買い", z["PER帯"]["pos"] if z["PER帯"] and z["PER帯"]["pos"] is not None else 999))
     payload = {"generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "asof": rz["asof"],
-               "counts": {"連続増配株": len(R), "期待値投資": len(K)},
+               "counts": {"連続増配株": len(R), "期待値投資": len(K),
+                          # 2026-11-15 新高値ブレイク（ページが無いときは出さない）
+                          "新高値ブレイク": (lambda b: {"2年": sum(1 for r in b["rows"] if "2年" in r["期間"]),
+                                                     "半年": len(b["rows"])})(load("breakout.json"))
+                          if (docs / "breakout.json").exists() else None},
                "sections": [{"title": "連続増配株 × 期待値投資", "pages": ["連続増配株", "期待値投資"], "rows": rows}]}
     (docs / "common.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     (docs / "common.html").write_text(render_common(payload), encoding="utf-8")
@@ -263,6 +267,11 @@ def render_top(p: dict) -> str:
         ("common.html", "共通する銘柄", f"{len(p['sections'][0]['rows'])}銘柄",
          "連続増配株と期待値投資の両方に載る銘柄。"),
     ]
+    if n.get("新高値ブレイク"):
+        b = n["新高値ブレイク"]
+        cards.append(("breakout.html", "新高値ブレイク", f"2年 {b['2年']}・半年以上 {b['半年']}銘柄",
+                      "直近5営業日に過去半年・1年・2年の最高値を超えた銘柄。ボックス・カップ・出来高の目安と、"
+                      "業績の4つのポイント（直近の半期の売上・営業利益の伸びを最重視）。ニュース・決算へのリンク。"))
     items = "".join(f'<a class="card" href="{h}"><div class="t">{t}<span>{c}</span></div><div class="d">{d}</div></a>'
                     for h, t, c, d in cards)
     return f"""<!doctype html>

@@ -269,6 +269,103 @@ def ten_years(codes_fy: dict, backs=(5,)) -> dict:
     return out
 
 
+# ===== 半期報告書（2026-11-15 新高値ブレイクのページで追加） =====
+# 四半期報告書は2024年4月になくなり、EDINET で取れる期の途中の業績は半期報告書（上期）だけになった。
+# 上期の売上・営業利益と前年同期の値を取る（下期は 通期 − 上期 で出す。build_breakout.py）。
+HALF = "160"                      # 半期報告書の書類コード
+HALF_DAYS = 480                   # 何日前までの提出一覧を見るか（12月決算は8月提出なので、前年の分まで届くように）
+HALF_CTX = re.compile(r"^(Interim|Prior1Interim)Duration(_NonConsolidatedMember)?$")
+HALF_PARSER = 1
+
+
+def day_index_half(d: date, key: str) -> list:
+    """その日に提出された半期報告書の一覧（data/edinet/index_half/日付.json に保存）。"""
+    f = DIR / "index_half" / f"{d:%Y-%m-%d}.json"
+    if f.exists():
+        return json.loads(f.read_text(encoding="utf-8"))
+    r = _get(f"{API}/documents.json", {"date": f"{d:%Y-%m-%d}", "type": 2, "Subscription-Key": key})
+    if r is None:
+        return []
+    keep = [{k: x.get(k) for k in ("docID", "secCode", "periodStart", "periodEnd", "submitDateTime", "csvFlag")}
+            for x in r.json().get("results") or []
+            if x.get("docTypeCode") == HALF and x.get("secCode") and x.get("withdrawalStatus") == "0"]
+    if d < date.today() - timedelta(days=3):
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(keep, ensure_ascii=False), encoding="utf-8")
+    return keep
+
+
+def parse_half(df: pd.DataFrame) -> dict:
+    """{"売上": (上期, 前年の上期), "営業利益": (上期, 前年の上期)}。連結があれば連結。"""
+    cols = list(df.columns)
+    eid, ctx, val = cols[0], cols[2], cols[-1]
+    summ = df[df[eid].str.endswith("SummaryOfBusinessResults", na=False)]
+    has_cons = bool((summ[ctx].astype(str) == "InterimDuration").any())
+    res = {}
+    for name in ("売上", "営業利益"):
+        sub = df[df[eid].str.split(":").str[-1].str.contains(PATTERNS[name], na=False)]
+        best = {}
+        for _, r in sub.iterrows():
+            m = HALF_CTX.match(str(r[ctx]))
+            if not m:
+                continue
+            k = 0 if m.group(1) == "Interim" else 1
+            try:
+                v = float(str(r[val]).replace(",", ""))
+            except ValueError:
+                continue
+            consolidated = not m.group(2)
+            if has_cons and not consolidated:
+                continue
+            rank = 1 if consolidated else 0
+            if k not in best or rank > best[k][0]:
+                best[k] = (rank, v)
+        res[name] = (best[0][1] if 0 in best else None, best[1][1] if 1 in best else None)
+    return res
+
+
+def half_years(codes: list, key: str) -> dict:
+    """銘柄ごとに直近2冊の半期報告書の {決算期末 YYYY-MM: {"売上": (今, 前年), "営業利益": (今, 前年)}}。"""
+    today = date.today()
+    days = [today - timedelta(days=k) for k in range(HALF_DAYS) if (today - timedelta(days=k)).weekday() < 5]
+    todo = [d for d in days if not (DIR / "index_half" / f"{d:%Y-%m-%d}.json").exists()]
+    print(f"  EDINET の半期報告書の提出一覧 {len(days)}日分（新しく取るのは {len(todo)}日分）", flush=True)
+    want, found = set(codes), {}
+    for i, d in enumerate(days):
+        for x in day_index_half(d, key):
+            c = x["secCode"][:4]
+            if c in want and x.get("periodEnd"):
+                found.setdefault(c, []).append(x)
+        if (i + 1) % 100 == 0 and len(todo) > 50:
+            print(f"    {i + 1}/{len(days)}", flush=True)
+    out = {}
+    n = 0
+    for c, docs in found.items():
+        by_fy = {}
+        for x in sorted(docs, key=lambda x: x["submitDateTime"] or ""):
+            by_fy[x["periodEnd"][:7]] = x                       # 同じ期に2冊あれば新しい方
+        rec = {}
+        for fy in sorted(by_fy)[-2:]:
+            x = by_fy[fy]
+            f = DIR / "parsed_half" / f"{x['docID']}.json"
+            p = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+            if not p or p.get("_v") != HALF_PARSER:
+                dfx = fetch_doc(x["docID"], key)
+                n += 1
+                if dfx is None:
+                    continue
+                p = {k: list(v) for k, v in parse_half(dfx).items()}
+                p["_v"] = HALF_PARSER
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")
+                if n % 100 == 0:
+                    print(f"    半期報告書 {n}冊", flush=True)
+            rec[fy] = {k: tuple(p[k]) for k in ("売上", "営業利益") if k in p}
+        out[c] = rec
+    print(f"  半期報告書が見つかった銘柄 {len(out)}/{len(codes)}（新しく読んだ {n}冊）", flush=True)
+    return out
+
+
 if __name__ == "__main__":
     st = pd.read_csv(ROOT / "data" / "statements.csv")
     st = st[st["error"].fillna("") == ""]

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>新高値ブレイク</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#16202a;--sub:#5d6b78;--line:#e2e7ec;--accent:#0c6f79;--hi:#eef6f6;--good:#0b7a4b;--warn:#b25c00;--band:#0c6f7922;--box:#b25c0022}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1419;--card:#161f26;--ink:#e6ecf0;--sub:#9aa9b4;--line:#243039;--accent:#4fb6bf;--hi:#12303350;--good:#4cc38a;--warn:#f0a050;--band:#4fb6bf2e;--box:#f0a05030}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif}
+header{padding:16px 14px 6px}
+h1{margin:0;font-size:19px}
+.meta{color:var(--sub);font-size:12px;margin-top:4px}
+.nav{font-size:12.5px;margin-top:6px}.nav a{color:var(--accent);margin-right:14px}
+section{padding:6px 14px 40px}
+.desc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--sub);margin-bottom:10px}
+.desc b{color:var(--ink)}
+.desc ol{margin:4px 0 4px;padding-left:1.4em}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 13px;font-size:12.5px;color:var(--sub);margin-bottom:10px}
+summary{color:var(--ink);font-weight:600;cursor:pointer}
+dl{margin:8px 0 2px}dt{color:var(--ink);font-weight:600;margin-top:6px}dd{margin:0}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 6px;font-size:12.5px}
+.filters button{font:inherit;font-size:12.5px;padding:3px 11px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);cursor:pointer}
+.filters button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.filters label{margin-left:6px;color:var(--ink);cursor:pointer}
+.count{font-size:12px;color:var(--sub);margin:6px 2px 8px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:8px 7px;text-align:right;font-size:12.5px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+th{background:var(--hi);color:var(--sub);font-size:11.5px;cursor:pointer;position:sticky;top:0}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1}
+th:first-child{background:var(--hi);z-index:2}
+td:first-child{white-space:normal;min-width:10em;max-width:11.5em}
+tbody tr:last-child td{border-bottom:none}
+.wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.good{color:var(--good);font-weight:700}.warn{color:var(--warn);font-weight:700}.s{color:var(--sub)}
+.code{font:inherit;font-size:11.5px;font-weight:600;color:var(--accent);background:var(--hi);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-right:4px;cursor:pointer}
+td a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:2px;color:var(--sub)}
+.tag.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.l{text-align:left}
+svg{vertical-align:middle;display:inline-block}
+.chartbtn{background:none;border:0;padding:0;cursor:pointer;color:var(--accent)}
+tr.detail td{white-space:normal;text-align:left;background:var(--hi);position:static}
+.big{width:100%;max-width:680px;height:auto}
+.dwrap{position:sticky;left:8px;width:min(680px,calc(100vw - 60px))}
+.legend{font-size:11.5px;color:var(--sub)}
+.mini{border-collapse:collapse;width:auto;margin:6px 0;background:var(--card)}
+.mini th,.mini td{position:static;padding:4px 8px;font-size:12px;cursor:default}
+.mini th:first-child,.mini td:first-child{position:static;min-width:0}
+#toast{position:fixed;left:0;right:0;bottom:18px;margin:0 auto;width:max-content;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:13px;display:none;text-align:center;z-index:10;box-shadow:0 4px 14px #0003}
+</style></head><body>
+<header><h1>新高値ブレイク</h1><div class="meta" id="meta"></div>
+__NAV__</header>
+<section>
+<div class="desc"><b>手順</b>（ご自身のまとめ「新高値ブレイク投資法」より）
+<ol><li><b>新高値の銘柄</b>：直近5営業日に、過去半年・1年・2年の最高値を超えた銘柄（このページで自動）</li>
+<li><b>チャートの形</b>：ボックス・カップ（取っ手）・出来高の急増の<b>目安</b>を表示。グラフを押すと大きく表示されるので、形はご自身で確かめてください</li>
+<li><b>ビッグチェンジの理由</b>：自動では判断できません。「ニュース」「決算」のリンクから探してください</li>
+<li><b>業績</b>：①〜④を自動で判定。<b>③（直近の業績の伸び）がいちばん大事</b>なので、③の良い順に並べています</li></ol>
+赤字の会社や業績の条件を満たさない会社も外していません（資料の「③を満たせば他は無くてもよい」「赤字でもビッグチェンジによる成長を見込むことがある」に合わせています）。<br>
+見出しで並べ替え、<b>銘柄名</b>で楽天証券、<b>コード</b>でコピー。</div>
+<details><summary>各列の見方</summary><dl>
+<dt>新高値（半年・1年・2年）</dt><dd>直近5営業日のどこかで、その日の高値が「その日より前の半年／1年／2年の最高値」を超えたら色付き。上場から期間に満たない銘柄が上場来の最高値を超えた場合は「上場来」。「前の最高値」は超えた期間のうち最も長い期間の最高値です。</dd>
+<dt>高値から</dt><dd>今の株価が、新高値を付けた日の高値から何%か（マイナスは押している）。</dd>
+<dt>出来高</dt><dd>新高値の日の出来高 ÷ その前50営業日の平均。2倍以上を太字（出来高の急増）。</dd>
+<dt>チャートの形（目安）</dt><dd><b>ボックス</b>＝新高値の日の前に、高値と安値の幅が12%以内でもみ合っていた期間（20営業日以上）。<b>カップ</b>＝7〜52週前の山から12〜50%下げてU字に戻した形（下半分に3週以上）。直前5週に山の85%以上の高さから3〜15%の押しがあれば「＋取っ手」。形の判定は機械的なので、必ずグラフで確かめてください。</dd>
+<dt>③ 直近の業績（最も重要）</dt><dd>資料の基準は「直近の2〜3四半期が前年同期比で営業利益20%以上・売上10%以上」。四半期の数字は自動で取れる出どころが無いため（EDINETは2024年から半期ごと、東証の適時開示は自動取得を断っている）、<b>半期で代用</b>しています。上期＝半期報告書、下期＝通期−上期。直近の2つの半期がともに満たせば◎、直近だけなら○。前年が赤字で黒字になった期は利益の条件を満たす扱い。四半期ごとの数字は「決算」のリンクで確かめてください。</dd>
+<dt>② 直近の通期の営業利益の伸び</dt><dd>前期比。30%以上◎（理想）・20%以上○（基準）・10%以上△（最低）。かっこ内はその前の年。</dd>
+<dt>① 業績の安定性</dt><dd>過去3年の営業利益の伸び（年率）。10%以上◎・5%以上○。</dd>
+<dt>④ 営業利益率</dt><dd>直近の通期の営業利益率が前期より上がり、売上も増えていれば○。</dd>
+<dt>業績の出どころ</dt><dd>有価証券報告書と半期報告書（EDINET、連結）。銀行・保険など営業利益の無い会社は「–」。</dd>
+</dl></details>
+<div class="filters" id="filters"></div>
+<div class="count" id="count"></div>
+<div id="body"></div>
+</section>
+<div id="toast" role="status"><span id="toastMsg"></span></div>
+<script>
+const D = __DATA__;
+const QUOTE = code => `https://www.rakuten-sec.co.jp/web/market/search/quote.html?ric=${code}.T`;
+const NEWS = code => `https://kabutan.jp/stock/news?code=${code}`;
+const FIN = code => `https://kabutan.jp/stock/finance?code=${code}`;
+const COLS = ["銘柄","新高値","日","チャート","株価","高値から","出来高倍","形","③","②","①","④","リンク","時価総額","売買代金","業種"];
+const HEAD = {"新高値":"新高値（半年・1年・2年）","日":"新高値の日","チャート":"週足（2年）","高値から":"高値から%","出来高倍":"出来高（倍）","形":"チャートの形（目安）",
+              "③":"③ 直近の半期（売上・営業利益）","②":"② 営業利益の伸び","①":"① 3年の伸び（年率）","④":"④ 営業利益率","リンク":"ニュース・決算","時価総額":"時価総額億","売買代金":"売買代金億（20日）"};
+const RANK = {"◎": 3, "○": 2, "△": 1, "×": 0};
+const KEY = {"新高値": r => Object.keys(r.期間).length, "日": r => r.最高値日, "③": r => r["③"] ? RANK[r["③"]] : null,
+             "②": r => r["②"], "①": r => r["①"], "④": r => r.利益率 && r.利益率[1] !== null ? r.利益率[1] : null,
+             "形": r => (r.ボックス ? 1 : 0) + (r.カップ ? 1 : 0) + (r.カップ && r.カップ.取っ手 ? 1 : 0)};
+let sortCol = null, sortAsc = false, open = new Set(), level = "2年", only3 = false;
+document.getElementById("meta").textContent = `株価 ${D.asof.株価} 時点 ／ 作成 ${D.generated}`;
+const f = (x, d) => x === null || x === undefined ? "–" : Number(x).toLocaleString("ja-JP", {minimumFractionDigits: d, maximumFractionDigits: d});
+const pc = x => x === null || x === undefined ? "–" : (x > 0 ? "+" : "") + f(x, 1) + "%";
+const mark = m => m ? `<span class="${m === "◎" || m === "○" ? "good" : m === "×" ? "s" : ""}">${m}</span>` : `<span class="s">–</span>`;
+const LEVELS = [["2年", "2年（3期間すべて）"], ["1年", "1年以上"], ["半年", "半年以上"]];
+function filters() {
+  const n = k => D.rows.filter(r => r.期間[k]).length;
+  document.getElementById("filters").innerHTML = LEVELS.map(([k, t]) => `<button data-l="${k}" class="${level === k ? "on" : ""}">${t} ${n(k)}</button>`).join("") +
+    `<label><input type="checkbox" id="only3" ${only3 ? "checked" : ""}> ③を満たす（◎・○）銘柄だけ</label>`;
+  document.querySelectorAll("#filters button").forEach(b => b.onclick = () => { level = b.dataset.l; filters(); draw(); });
+  document.getElementById("only3").onchange = e => { only3 = e.target.checked; draw(); };
+}
+function chart(r, w, h, big) {
+  const s = r.週; if (!s || s.length < 2) return "";
+  const vals = s.map(x => x[1]), old = r.前の最高値;
+  let lo = Math.min(...vals), hi = Math.max(...vals, old);
+  if (big && r.ボックス) { lo = Math.min(lo, r.ボックス.下); hi = Math.max(hi, r.ボックス.上); }
+  if (big && r.カップ) hi = Math.max(hi, r.カップ.山);
+  const padL = big ? 44 : 2, padB = big ? 18 : 2, padT = big ? 8 : 2, padR = big ? 10 : 2;
+  const t0 = Date.parse(s[0][0]), t1 = Date.parse(s[s.length - 1][0]) + 6 * 864e5;
+  const X = d => padL + (Date.parse(d) - t0) / (t1 - t0) * (w - padL - padR);
+  const Y = v => padT + (hi - v) / (hi - lo || 1) * (h - padT - padB);
+  let g = `<svg viewBox="0 0 ${w} ${h}" width="${big ? "100%" : w}" ${big ? 'class="big"' : `height="${h}"`}>`;
+  if (big && r.ボックス) {
+    const x0 = X(r.ボックス.始), x1 = X(r.最高値日);
+    g += `<rect x="${x0}" y="${Y(r.ボックス.上)}" width="${Math.max(2, x1 - x0)}" height="${Y(r.ボックス.下) - Y(r.ボックス.上)}" fill="var(--box)"/>`;
+  }
+  g += `<line x1="${padL}" x2="${w - padR}" y1="${Y(old)}" y2="${Y(old)}" stroke="var(--warn)" stroke-dasharray="3 3" stroke-width="1"/>`;
+  g += `<polyline fill="none" stroke="var(--accent)" stroke-width="${big ? 1.8 : 1.3}" points="${s.map(x => X(x[0]).toFixed(1) + "," + Y(x[1]).toFixed(1)).join(" ")}"/>`;
+  if (big) {
+    if (r.カップ) g += `<circle cx="${X(r.カップ.山の日)}" cy="${Y(r.カップ.山)}" r="3.5" fill="none" stroke="var(--warn)" stroke-width="1.5"/><text x="${X(r.カップ.山の日)}" y="${Y(r.カップ.山) - 7}" font-size="10" text-anchor="middle" fill="var(--sub)">山</text>`;
+    for (const v of [hi, (hi + lo) / 2, lo]) g += `<text x="${padL - 4}" y="${Y(v) + 4}" font-size="10" text-anchor="end" fill="var(--sub)">${f(v, 0)}</text>`;
+    g += `<text x="${w - padR}" y="${Y(old) - 4}" font-size="10" text-anchor="end" fill="var(--warn)">前の最高値 ${f(old, 1)}</text>`;
+    let last = "";
+    s.forEach(x => { const m = x[0].slice(0, 7); if (m !== last && /-(01|04|07|10)$/.test(m)) g += `<text x="${X(x[0])}" y="${h - 4}" font-size="10" text-anchor="middle" fill="var(--sub)">${m.replace("-", "/")}</text>`; last = m; });
+  }
+  return g + "</svg>";
+}
+function shape(r) {
+  const p = [];
+  if (r.ボックス) p.push(`ボックス ${r.ボックス.日数}日・幅${f(r.ボックス.幅, 0)}%`);
+  if (r.カップ) p.push(`カップ ${r.カップ.週}週・深さ${r.カップ.深さ}%${r.カップ.取っ手 ? `<b>＋取っ手</b>` : ""}`);
+  return p.length ? p.join("<br>") : `<span class="s">–</span>`;
+}
+function cell(k, r) {
+  if (k === "銘柄") {
+    const v = r.銘柄, i = v.indexOf(" "), code = v.slice(0, i), name = v.slice(i + 1);
+    return `<td><button class="code" data-code="${code}">${code}</button><a href="${QUOTE(code)}" target="_blank" rel="noopener">${name}</a></td>`;
+  }
+  if (k === "新高値") return `<td class="l">${["半年","1年","2年"].map(p => `<span class="tag ${r.期間[p] ? "on" : ""}">${r.期間[p] === "上場来" ? "上場来" : p}</span>`).join("")}</td>`;
+  if (k === "日") return `<td>${r.日}</td>`;
+  if (k === "チャート") return `<td><button class="chartbtn" data-c="${r.銘柄}" aria-label="グラフを大きく">${chart(r, 120, 34, false)}</button></td>`;
+  if (k === "株価") return `<td>${f(r.株価, 1)}</td>`;
+  if (k === "高値から") return `<td>${pc(r.高値から)}</td>`;
+  if (k === "出来高倍") return `<td>${r.出来高倍 === null ? "–" : r.出来高倍 >= 2 ? `<b class="good">${f(r.出来高倍, 1)}</b>` : f(r.出来高倍, 1)}</td>`;
+  if (k === "形") return `<td class="l">${shape(r)}</td>`;
+  if (k === "③") {
+    if (!r.半期) return `<td class="s">–</td>`;
+    const h = r.半期[r.半期.length - 1];
+    return `<td>${mark(r["③"])} <small>${h.期}</small><br><small>売上 ${pc(h.売上伸び)}・利益 ${h.黒字化 ? "黒字化" : pc(h.利益伸び)}</small></td>`;
+  }
+  if (k === "②") return `<td>${mark(r["②評価"])} ${pc(r["②"])}${r["②前"] !== null ? ` <small class="s">（${pc(r["②前"])}）</small>` : ""}</td>`;
+  if (k === "①") return `<td>${mark(r["①評価"])} ${pc(r["①"])}</td>`;
+  if (k === "④") return r.利益率 ? `<td>${r["④"] ? `<span class="good">○</span>` : `<span class="s">×</span>`} ${f(r.利益率[0], 1)}→${f(r.利益率[1], 1)}%</td>` : `<td class="s">–</td>`;
+  if (k === "リンク") { const c = r.銘柄.split(" ")[0]; return `<td><a href="${NEWS(c)}" target="_blank" rel="noopener">ニュース</a>・<a href="${FIN(c)}" target="_blank" rel="noopener">決算</a></td>`; }
+  if (k === "時価総額") return `<td>${f(r.時価総額, 0)}</td>`;
+  if (k === "売買代金") return `<td>${f(r.売買代金, 2)}</td>`;
+  if (k === "業種") return `<td class="l">${r.業種 || "–"}</td>`;
+  return "<td>–</td>";
+}
+function detail(r) {
+  let h = `<div class="legend">${r.銘柄}　週足の終値（2年）。点線＝前の最高値${r.ボックス ? "、色の帯＝新高値の前のボックス" : ""}${r.カップ ? "、○＝カップの山" : ""}</div>${chart(r, 680, 220, true)}`;
+  if (r.半期) h += `<table class="mini"><tr><th>半期</th><th>売上（億円）</th><th>前年同期比</th><th>営業利益（億円）</th><th>前年同期比</th><th>③</th></tr>` +
+    r.半期.map(x => `<tr><td>${x.期}</td><td>${f(x.売上, 1)}</td><td>${pc(x.売上伸び)}</td><td>${f(x.営業利益, 1)}</td><td>${x.黒字化 ? "黒字化" : pc(x.利益伸び)}</td><td>${x.満たす === null ? "–" : x.満たす ? "満たす" : "–"}</td></tr>`).join("") + `</table>`;
+  if (r.営業利益) h += `<div class="legend">通期（〜${r.通期}期、古い順・億円）　売上 ${r.売上.map(v => f(v, 1)).join(" → ")}　／　営業利益 ${r.営業利益.map(v => f(v, 1)).join(" → ")}</div>`;
+  return h;
+}
+function draw() {
+  let rows = D.rows.filter(r => r.期間[level] && (!only3 || r["③"] === "◎" || r["③"] === "○"));
+  if (sortCol) {
+    const get = KEY[sortCol] || (r => r[sortCol]);
+    rows.sort((a, b) => {
+      const x = get(a), y = get(b);
+      if (x === null || x === undefined) return 1;
+      if (y === null || y === undefined) return -1;
+      return (x > y ? 1 : x < y ? -1 : 0) * (sortAsc ? 1 : -1);
+    });
+  }
+  document.getElementById("count").textContent = `${rows.length} 銘柄（直近5営業日の新高値：半年 ${D.counts.半年}・1年 ${D.counts["1年"]}・2年 ${D.counts["2年"]} 銘柄）`;
+  const head = COLS.map(c => `<th data-c="${c}">${HEAD[c] || c}</th>`).join("");
+  const body = rows.map(r => "<tr>" + COLS.map(c => cell(c, r)).join("") + "</tr>" +
+    (open.has(r.銘柄) ? `<tr class="detail"><td colspan="${COLS.length}"><div class="dwrap">${detail(r)}</div></td></tr>` : "")).join("");
+  document.getElementById("body").innerHTML = rows.length ? `<div class="wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` : `<div class="desc">該当する銘柄はありません。</div>`;
+  document.querySelectorAll("th").forEach(th => th.onclick = () => {
+    const c = th.dataset.c;
+    sortAsc = sortCol === c ? !sortAsc : false;
+    sortCol = c; draw();
+  });
+  document.querySelectorAll(".code").forEach(b => b.onclick = () => copyCode(b.dataset.code));
+  document.querySelectorAll(".chartbtn").forEach(b => b.onclick = () => { open.has(b.dataset.c) ? open.delete(b.dataset.c) : open.add(b.dataset.c); draw(); });
+}
+let toastTimer = null;
+async function copyCode(code) {
+  let ok = false;
+  try { await navigator.clipboard.writeText(code); ok = true; } catch (e) {
+    const t = document.createElement("textarea");
+    t.value = code; t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select();
+    try { ok = document.execCommand("copy"); } catch (e2) {}
+    t.remove();
+  }
+  document.getElementById("toastMsg").textContent =
+    ok ? `${code} をコピーしました。iSPEEDの検索に貼り付けてください` : `コピーできませんでした（コード ${code}）`;
+  const el = document.getElementById("toast");
+  el.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = "none"; }, 3500);
+}
+filters();
+draw();
+</script></body></html>

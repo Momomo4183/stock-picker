@@ -3,7 +3,7 @@
 
   1. 財務（1株あたりの値）が古ければ取り直す（週1回・遅い）
   2. 株価を取り直す（全銘柄・約1分）
-  3. ページを作り直す（renzoku.html・kitaichi.html と、トップ index.html・共通する銘柄 common.html）。
+  3. ページを作り直す（renzoku.html・kitaichi.html・breakout.html と、トップ index.html・共通する銘柄 common.html）。
      トップの「銘柄検索」が読む docs/per/（PER・PER×PBRの履歴・銘柄一覧）と docs/detail/（スクリーニングの全要素）、
      保有銘柄シートが読む docs/summary.csv、日本株ETFシートが読む docs/etf/ もここで作る
   4. GitHub に反映する（変化があったときだけ）
@@ -131,6 +131,9 @@ def main() -> int:
             ok += 1
         else:
             print(f"  [!] {name}のページは作れませんでした（ほかのページは続けて作ります）")
+    # 2026-11-15 新高値ブレイク（週足2年を全銘柄で取る・約1分。業績は EDINET の報告書を新しい分だけ読む）
+    if run(py + [str(BASE / "build_breakout.py")], timeout=3600) != 0:
+        print("  [!] 新高値ブレイクのページは作れませんでした（ほかのページは続けて作ります）")
     # 検索結果に出すスクリーニングの全要素（全銘柄。決算書は30日ごとに取り直すので、その回は時間がかかる）
     if run(py + [str(BASE / "build_detail.py")], timeout=3 * 3600) != 0:
         print("  [!] 検索結果のスクリーニングの要素は作れませんでした")

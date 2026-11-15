@@ -11,6 +11,7 @@
 | 連続増配株（docs/renzoku.html） | 下を参照 |
 | 期待値投資（docs/kitaichi.html） | 下を参照 |
 | 共通する銘柄（docs/common.html） | 連続増配株 × 期待値投資 |
+| 新高値ブレイク（docs/breakout.html） | 下を参照 |
 
 2026-10-18 に、最初のページ「配当株の買い場」（PER12以下・PBR1以下・配当利回り3%以上・
 時価総額700億円以上の割安度一覧）はご本人の依頼で削除した。
@@ -51,6 +52,16 @@ run_update.bat --no-push  GitHub に反映せず手元で確認する
 中央値以下を「買い」、上を「売り」の目安とする。売上・EPSは有価証券報告書の主要な経営指標、
 営業利益は連結損益計算書（1冊に2期分なので5冊）から取る。細かい決まりは `scripts/build_kitaichi.py` の先頭。
 
+## 新高値ブレイク（docs/breakout.html）
+
+2026-11-15 追加。ご本人のまとめ（`新高値ブレイク投資法.xlsx`）の4つの手順のうち、機械でできる部分を出す。
+直近5営業日に過去半年・1年・2年の最高値を超えた銘柄に、チャートの形の目安（ボックス・カップと取っ手・出来高の急増）、
+業績の4つのポイント（①3年の営業利益の伸び ②直近の通期の営業利益の伸び ③直近の2つの半期の売上・営業利益の前年同期比
+④営業利益率の改善）、ニュース・決算へのリンクを付ける。③が最も重要なので③の良い順。
+資料の③は四半期だが、四半期の数字を自動で取れる出どころが無い（EDINET は半期ごと、東証の適時開示は robots.txt で
+自動取得を断っている、yfinance の四半期は欠けや古さが多い）ので、半期報告書と有価証券報告書から半期で代用する。
+細かい決まりは `scripts/build_breakout.py` の先頭。
+
 ## PER検索（Googleスプレッドシート用のデータ、docs/per/コード.csv）
 
 銘柄ごとに過去10年の毎月の 株価・EPS・PER を CSV で公開する（`scripts/build_per_data.py`）。
@@ -89,6 +100,7 @@ scripts/common.py             各ページ共通のデータ読み込み（株�
 scripts/fetch_edinet.py       EDINET から有価証券報告書を取る
 scripts/build_renzoku.py      連続増配株
 scripts/build_kitaichi.py     期待値投資
+scripts/build_breakout.py     新高値ブレイク（見た目は scripts/breakout_template.html）
 scripts/valuation.py          PER・PER×PBR を過去と比べる共通処理（月次の値・幅）
 scripts/build_etf.py          東証の全ETF・ETNの値動きと分配金（docs/etf/。日本株ETFのスプレッドシートが IMPORTDATA で読む）
 scripts/build_per_data.py     銘柄ごとのPERの履歴（docs/per/）

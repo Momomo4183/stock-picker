@@ -30,8 +30,9 @@ BASE = Path(__file__).resolve().parent
 ROOT = BASE.parent
 DATA = ROOT / "data"
 # 各ページの上に並べるリンク（2026-10-26 高配当株 15指標・グロース株のページを削除）
+# 2026-11-15 新高値ブレイクを追加
 NAV = [("./", "トップ"), ("renzoku.html", "連続増配株"), ("kitaichi.html", "期待値投資"),
-       ("common.html", "共通する銘柄")]
+       ("common.html", "共通する銘柄"), ("breakout.html", "新高値ブレイク")]
 
 
 def latest(pattern: str) -> Path:

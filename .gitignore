@@ -5,3 +5,5 @@ __pycache__/
 *.log
 # EDINET のAPIキー（公開しない）
 .edinet_key
+# ご本人の資料（画像に書籍の図を含むので公開しない）
+/*.xlsx
